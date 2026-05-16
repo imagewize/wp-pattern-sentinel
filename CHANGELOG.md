@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.5] - 2026-05-16
+
+### Fixed
+- **PHP expression stripping in block content** — inline PHP expressions (`<?php echo esc_url(...); ?>`, `<?php esc_html_e(...); ?>`, `<?php esc_attr_e(...); ?>`, etc.) inside block markup were passed as-is to the WordPress editor, which HTML-entity-encoded `<` and `>` to `<`/`>`, causing false-positive `content_mismatch` and `block_validation` errors. `extractBlockContent` now runs `stripPhpForValidation` on the block markup before it is handed to the editor — PHP expressions are replaced with their static equivalents (text values or `http://example.com` for URLs) before the round-trip.
+
+### Added
+- **Progress logging** — terminal now shows "Logging in to WordPress...", "Authenticated — sharing session across N worker(s)", and "  Validating: pattern.php" for each pattern as it starts, so long validation runs are no longer silent.
+
 ## [0.2.4] - 2026-05-16
 
 ### Fixed
