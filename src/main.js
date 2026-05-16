@@ -30,20 +30,25 @@ export async function main() {
     args: ['--disable-web-security'],
   });
 
-  // One authenticated context per worker — sessions are fully isolated
+  // Login once, then share the session cookies across all worker contexts.
+  // Concurrent logins to WordPress (even with valid credentials) trigger a
+  // reauth=1 redirect loop — serialising login avoids this entirely.
   let contexts;
   try {
-    contexts = await Promise.all(
-      Array.from({ length: options.concurrency }, async () => {
-        const context = await browser.newContext({ viewport: options.viewport });
-        const page    = await context.newPage();
-        page.setDefaultTimeout(60000);
-        const ok = await loginToWordPress(page, options.adminUrl, options.user, options.pass);
-        await page.close();
-        if (!ok) throw new Error('Failed to authenticate with WordPress');
-        return context;
-      })
-    );
+    const firstContext = await browser.newContext({ viewport: options.viewport });
+    const loginPage    = await firstContext.newPage();
+    loginPage.setDefaultTimeout(60000);
+    const ok = await loginToWordPress(loginPage, options.adminUrl, options.user, options.pass);
+    await loginPage.close();
+    if (!ok) throw new Error('Failed to authenticate with WordPress');
+
+    const cookies = await firstContext.cookies();
+    contexts = [firstContext];
+    for (let i = 1; i < options.concurrency; i++) {
+      const ctx = await browser.newContext({ viewport: options.viewport });
+      await ctx.addCookies(cookies);
+      contexts.push(ctx);
+    }
   } catch (error) {
     log(error.message, 'red');
     await browser.close();

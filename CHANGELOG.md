@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.2.4] - 2026-05-16
+
+### Fixed
+- **Concurrent login → `reauth=1` loop** — WordPress returns `reauth=1` when multiple browser contexts hit `wp-admin` simultaneously, even with correct credentials. Root cause: concurrent login attempts (the previous `Promise.all` over N contexts) caused WordPress to reject all but one session. Fix: login once with a single context, then copy the authenticated session cookies to all remaining worker contexts (`context.addCookies()`). Workers now share one authenticated session and validate patterns in parallel without any extra login round-trips.
+
 ## [0.2.3] - 2026-05-16
 
 ### Fixed
