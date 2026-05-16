@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.2.3] - 2026-05-16
+
+### Fixed
+- **Login rewrite** — adopted the proven strategy from the reference implementation:
+  - Navigate to `wp-admin/post-new.php` first instead of `wp-login.php`; WordPress redirects to the login page with `redirect_to` preserving the editor URL (critical for multisite subsite context)
+  - Wait for `#user_login` to be visible before filling the form
+  - Use `Promise.all([waitForNavigation, click])` to start listening for navigation before clicking submit — prevents missing the redirect
+  - Verify login by checking `url().includes('/wp-admin/')` rather than URL pattern matching
+  - Increase navigation timeout to 60s
+  - Read and surface `#login_error` message when login fails
+
 ## [0.2.2] - 2026-05-16
 
 ### Fixed
