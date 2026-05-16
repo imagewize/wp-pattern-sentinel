@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.3.0] - 2026-05-16
+
+### Added
+- GitHub Actions workflow (`.github/workflows/publish.yml`) — automatically publishes to npm when a `v*` tag is pushed. Requires an `NPM_TOKEN` secret in the repository settings.
+
 ## [0.2.1] - 2026-05-16
 
 ### Fixed
