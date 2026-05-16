@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.2.2] - 2026-05-16
+
+### Fixed
+- Login `waitForURL` now uses `waitUntil: 'domcontentloaded'` with a 30s timeout. The default `'load'` waited for all wp-admin assets to finish loading before resolving, causing timeouts on slower local environments.
+
 ## [0.2.1] - 2026-05-16
 
 ### Fixed
