@@ -1,0 +1,32 @@
+{
+  "name": "wp-pattern-sentinel",
+  "version": "0.1.0",
+  "description": "Browser-based WordPress block pattern validator using Playwright",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "bin": {
+    "sentinel": "./bin/sentinel.js"
+  },
+  "scripts": {
+    "start": "node bin/sentinel.js"
+  },
+  "files": [
+    "bin/",
+    "src/",
+    "README.md"
+  ],
+  "keywords": [
+    "wordpress",
+    "gutenberg",
+    "block-patterns",
+    "playwright",
+    "validation"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "p-queue": "^8.0.1",
+    "playwright": "^1.44.0"
+  }
+}
