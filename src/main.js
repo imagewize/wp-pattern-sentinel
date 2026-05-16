@@ -60,10 +60,17 @@ export async function main() {
   const queue = new PQueue({ concurrency: options.concurrency });
   let idx = 0;
 
-  // Push ALL tasks without awaiting — this is what makes workers run in parallel
+  // Push ALL tasks without awaiting — workers run in parallel.
+  // Print each result immediately as it finishes (real-time feedback).
   const promises = files.map(file => {
     const context = contexts[idx++ % options.concurrency];
-    return queue.add(() => validatePatternFile(file, options, context));
+    return queue.add(async () => {
+      const result = await validatePatternFile(file, options, context);
+      if (!options.json) {
+        console.log(formatResult(result));
+      }
+      return result;
+    });
   });
 
   const results = await Promise.all(promises);
@@ -73,12 +80,18 @@ export async function main() {
 
   if (options.json) {
     for (const r of results) console.log(JSON.stringify(r));
-  } else {
-    for (const r of results) console.log(formatResult(r));
-    printSummary(results);
   }
 
-  process.exit(results.some(r => !r.passed) ? 1 : 0);
+  printSummary(results);
+
+  // Write a log file when any pattern failed so details are preserved for inspection.
+  const hasFailed = results.some(r => !r.passed);
+  if (hasFailed) {
+    const logPath = await writeLogFile(results);
+    if (logPath) log(`  Log saved → ${logPath}`, 'gray');
+  }
+
+  process.exit(hasFailed ? 1 : 0);
 }
 
 async function validatePatternFile(patternPath, options, context) {
@@ -156,4 +169,26 @@ function fail(pattern, startTime, type, message) {
     warnings: [],
     duration: Date.now() - startTime,
   };
+}
+
+async function writeLogFile(results) {
+  try {
+    const now = new Date();
+    const ts  = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const logPath = path.join(process.cwd(), `sentinel-${ts}.log.json`);
+    const payload = {
+      timestamp: now.toISOString(),
+      results: results.map(r => ({
+        pattern:  r.pattern,
+        passed:   r.passed,
+        duration: r.duration,
+        errors:   r.errors,
+        warnings: r.warnings,
+      })),
+    };
+    await fs.promises.writeFile(logPath, JSON.stringify(payload, null, 2));
+    return logPath;
+  } catch {
+    return null;
+  }
 }

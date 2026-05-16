@@ -134,7 +134,28 @@ src/
   format.js          log, formatResult, printSummary
 ```
 
-Each worker gets its own authenticated `BrowserContext` so session failures are isolated. Login happens once per context before the queue starts.
+Each worker gets its own authenticated `BrowserContext` so session failures are isolated. Login happens once, then cookies are shared across all contexts — concurrent logins are never attempted.
+
+### Login resilience
+
+If the WordPress login page times out (common on slow local VMs), sentinel retries automatically with exponential backoff:
+
+| Attempt | Wait before retry |
+|---------|-------------------|
+| 1st | — |
+| 2nd | 5 s |
+| 3rd | 15 s |
+| 4th (final) | 30 s |
+
+Credential rejections (wrong password) are not retried — only timeout errors trigger the backoff.
+
+### Real-time output
+
+Each pattern result is printed to the terminal as soon as that worker finishes, rather than buffering everything until the full batch completes. During a long concurrent run you see progress immediately.
+
+### Failure log
+
+When any pattern fails, sentinel automatically writes a `sentinel-<timestamp>.log.json` file in the current working directory and prints the path after the summary. This preserves error details for later inspection without needing to re-run.
 
 ## npm publish
 
