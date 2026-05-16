@@ -9,7 +9,7 @@ export async function loginToWordPress(page, adminUrl, user, pass) {
     await page.fill('#user_login', user);
     await page.fill('#user_pass', pass);
     await page.click('#wp-submit');
-    await page.waitForURL(`${adminUrl}/wp-admin/**`, { timeout: 15000 });
+    await page.waitForURL(/\/wp-admin\//, { timeout: 15000 });
     return true;
   } catch (error) {
     log(`Login failed: ${error.message}`, 'red');

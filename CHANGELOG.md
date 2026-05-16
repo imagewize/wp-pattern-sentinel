@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.2.1] - 2026-05-16
+
+### Fixed
+- Login `waitForURL` now uses a regex (`/\/wp-admin\//`) instead of a glob. Playwright's `**` glob does not match a trailing empty segment, so `wp-admin/**` failed to match the `wp-admin/` redirect URL.
+
 ## [0.2.0] - 2026-05-16
 
 ### Added
