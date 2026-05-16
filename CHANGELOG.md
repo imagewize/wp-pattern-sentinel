@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.0] - 2026-05-16
+
+### Added
+- **`--cache` flag** — hash-based pass cache stored in `.sentinel-cache.json` in the working directory. On subsequent runs, patterns whose file content has not changed since they last passed are skipped entirely. The summary now shows a `Skipped (cached)` count alongside Passed/Failed. Cache entries are keyed by path relative to cwd and store a 12-character SHA-256 content hash so stale entries are never replayed after edits.
+- **`--clear-cache` flag** — deletes `.sentinel-cache.json`. Can be combined with a pattern path to clear-then-validate in one command, or used standalone to reset without running a validation.
+- **`--log` flag** — forces the `sentinel-<timestamp>.log.json` file to be written even when all patterns pass (previously it was written only on failure). Useful for building an audit trail of completed runs.
+- **Skipped count in summary** — `printSummary` now accepts an optional `skipped` argument and displays `Skipped : N (cached)` when `--cache` is active and at least one pattern was skipped.
+
 ## [0.2.6] - 2026-05-16
 
 ### Added

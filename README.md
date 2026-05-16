@@ -120,6 +120,9 @@ node bin/sentinel.js --concurrency=6 --url=... path/to/patterns/
 | `--keep-page` | `false` | Don't delete draft pages after validation |
 | `--width` | `1280` | Viewport width |
 | `--height` | `800` | Viewport height |
+| `--cache` | `false` | Skip patterns that previously passed with the same file content (see [Pass cache](#pass-cache)) |
+| `--clear-cache` | `false` | Delete `.sentinel-cache.json` and exit (or combine with a path to clear then validate) |
+| `--log` | `false` | Always write `sentinel-<timestamp>.log.json`, even when all patterns pass |
 
 ## Architecture
 
@@ -153,9 +156,41 @@ Credential rejections (wrong password) are not retried — only timeout errors t
 
 Each pattern result is printed to the terminal as soon as that worker finishes, rather than buffering everything until the full batch completes. During a long concurrent run you see progress immediately.
 
+### Pass cache
+
+`--cache` stores a `.sentinel-cache.json` file in the working directory. Each entry records the file's content hash and the last pass result:
+
+```json
+{
+  "patterns/main-hero.php": {
+    "hash": "a1b2c3d4e5f6",
+    "passed": true,
+    "checkedAt": "2026-05-16T10:00:00.000Z"
+  }
+}
+```
+
+On subsequent runs, if a pattern file's content hash matches the cached entry **and** it previously passed, the pattern is skipped. If the file has changed (even by one byte), it is re-validated and the cache entry is updated. Failed patterns are always removed from the cache so they are never skipped.
+
+```bash
+# First run — validates all, populates cache
+sentinel --cache --log patterns/
+
+# Later runs — only validates new or changed patterns
+sentinel --cache --log patterns/
+
+# Reset the cache (e.g. after a theme.json change that affects all patterns)
+sentinel --clear-cache
+
+# Clear and immediately re-validate
+sentinel --clear-cache --cache --log patterns/
+```
+
+Commit `.sentinel-cache.json` to track validated state across sessions. Add it to `.gitignore` if you prefer each developer to maintain their own local cache.
+
 ### Failure log
 
-When any pattern fails, sentinel automatically writes a `sentinel-<timestamp>.log.json` file in the current working directory and prints the path after the summary. This preserves error details for later inspection without needing to re-run.
+When any pattern fails, sentinel automatically writes a `sentinel-<timestamp>.log.json` file in the current working directory and prints the path after the summary. This preserves error details for later inspection without needing to re-run. Use `--log` to write the file even on a fully-passing run.
 
 ## npm publish
 

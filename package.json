@@ -1,6 +1,6 @@
 {
   "name": "@imwz/wp-pattern-sentinel",
-  "version": "0.2.6",
+  "version": "0.3.0",
   "description": "Browser-based WordPress block pattern validator using Playwright",
   "type": "module",
   "engines": {
