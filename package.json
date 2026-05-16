@@ -7,7 +7,7 @@
     "node": ">=18"
   },
   "bin": {
-    "sentinel": "./bin/sentinel.js"
+    "sentinel": "bin/sentinel.js"
   },
   "scripts": {
     "start": "node bin/sentinel.js"
