@@ -210,7 +210,11 @@ async function validatePatternFile(patternPath, options, context) {
     if (blockErrors.length > 0) {
       saveResult.errors.push(...blockErrors.map(e => ({
         type:    'block_validation',
-        message: `${e.blockName} (${e.blockId}): ${e.error}`,
+        message: `${e.blockName} (${e.blockId}): ${e.error}${
+          e.validationIssues?.length
+            ? '\n       Issues: ' + e.validationIssues.join('\n       ')
+            : ''
+        }`,
       })));
     }
 
@@ -266,6 +270,7 @@ async function writeLogFile(results) {
         duration: r.duration,
         errors:   r.errors,
         warnings: r.warnings,
+        ...(r.passed ? {} : { savedContent: r.savedContent ?? null }),
       })),
     };
     await fs.promises.writeFile(logPath, JSON.stringify(payload, null, 2));

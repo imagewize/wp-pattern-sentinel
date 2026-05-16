@@ -192,6 +192,18 @@ Commit `.sentinel-cache.json` to track validated state across sessions. Add it t
 
 When any pattern fails, sentinel automatically writes a `sentinel-<timestamp>.log.json` file in the current working directory and prints the path after the summary. This preserves error details for later inspection without needing to re-run. Use `--log` to write the file even on a fully-passing run.
 
+Failing results include a `savedContent` field — the editor's serialized output — so you can diff it directly against the source file:
+
+```bash
+node -e "
+  const log = JSON.parse(require('fs').readFileSync('sentinel-*.log.json'));
+  const r = log.results.find(r => !r.passed);
+  console.log(r.savedContent);
+" | diff - patterns/my-pattern.php
+```
+
+`block_validation` errors also surface Gutenberg's human-readable issue messages (e.g. `"Expected attribute 'class' of value '…' but got '…'"`), so you no longer need to open the browser console to identify what failed.
+
 ## npm publish
 
 When ready to publish:
