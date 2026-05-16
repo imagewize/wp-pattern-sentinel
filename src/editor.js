@@ -1,7 +1,36 @@
 import { log } from './format.js';
 
 /**
+ * Replace inline PHP expressions with static equivalents so the block editor
+ * receives valid markup and the round-trip comparison stays accurate.
+ *
+ * Handles the PHP patterns that appear in Elayne theme patterns:
+ *   <?php esc_html_e( 'Text', 'elayne' ); ?>           → Text
+ *   <?php echo esc_html__( 'Text', 'elayne' ); ?>      → Text
+ *   <?php esc_attr_e( 'Alt text', 'elayne' ); ?>       → Alt text
+ *   <?php echo esc_attr__( 'Alt text', 'elayne' ); ?>  → Alt text
+ *   <?php echo esc_url( get_template_directory_uri() ); ?>  → http://example.com
+ *   All other <?php ... ?> blocks                       → removed
+ */
+function stripPhpForValidation(content) {
+  if (!content.includes('<?php')) return content;
+
+  return content
+    .replace(/<\?php\s+(?:esc_html_e|esc_html__)\s*\(\s*'([^']+)'\s*,\s*'[^']+'\s*\)\s*;?\s*\?>/g, '$1')
+    .replace(/<\?php\s+(?:esc_html_e|esc_html__)\s*\(\s*"([^"]+)"\s*,\s*"[^"]+"\s*\)\s*;?\s*\?>/g, '$1')
+    .replace(/<\?php\s+echo\s+esc_html__\s*\(\s*'([^']+)'\s*,\s*'[^']+'\s*\)\s*;?\s*\?>/g, '$1')
+    .replace(/<\?php\s+(?:esc_attr_e|esc_attr__)\s*\(\s*'([^']+)'\s*,\s*'[^']+'\s*\)\s*;?\s*\?>/g, '$1')
+    .replace(/<\?php\s+(?:esc_attr_e|esc_attr__)\s*\(\s*"([^"]+)"\s*,\s*"[^"]+"\s*\)\s*;?\s*\?>/g, '$1')
+    .replace(/<\?php\s+echo\s+esc_attr__\s*\(\s*'([^']+)'\s*,\s*'[^']+'\s*\)\s*;?\s*\?>/g, '$1')
+    .replace(/<\?php\s+echo\s+esc_url\s*\([\s\S]*?\)\s*;?\s*\?>/g, 'http://example.com')
+    .replace(/<\?php[\s\S]*?\?>/g, '')
+    .trim();
+}
+
+/**
  * Strip the PHP file header (opening tag + docblock) and return the raw block markup.
+ * Inline PHP expressions within the block markup are replaced with static values
+ * so the editor receives valid content for round-trip validation.
  * Returns null if no block comment is found.
  *
  * WordPress pattern files look like:
@@ -21,7 +50,7 @@ export function extractBlockContent(fileContent) {
     .trim();
 
   if (!stripped.startsWith('<!--')) return null;
-  return stripped;
+  return stripPhpForValidation(stripped);
 }
 
 /**

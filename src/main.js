@@ -35,12 +35,14 @@ export async function main() {
   // reauth=1 redirect loop — serialising login avoids this entirely.
   let contexts;
   try {
+    log('Logging in to WordPress...', 'cyan');
     const firstContext = await browser.newContext({ viewport: options.viewport });
     const loginPage    = await firstContext.newPage();
     loginPage.setDefaultTimeout(60000);
     const ok = await loginToWordPress(loginPage, options.adminUrl, options.user, options.pass);
     await loginPage.close();
     if (!ok) throw new Error('Failed to authenticate with WordPress');
+    log(`Authenticated — sharing session across ${options.concurrency} worker(s)`, 'green');
 
     const cookies = await firstContext.cookies();
     contexts = [firstContext];
@@ -82,6 +84,8 @@ export async function main() {
 async function validatePatternFile(patternPath, options, context) {
   const patternName = path.basename(patternPath);
   const startTime   = Date.now();
+
+  log(`  Validating: ${patternName}`, 'cyan');
 
   let fileContent;
   try {
