@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.6] - 2026-05-16
+
+### Added
+- **Exponential backoff login retry** — on timeout, sentinel now waits 5s and retries; 15s on second timeout; 30s on third before giving up. Credential rejections (wrong password) are not retried — only network/timeout errors trigger the backoff loop.
+- **Real-time per-pattern output** — each pattern result is printed to the terminal as soon as it finishes, rather than buffering all results until the full batch completes. Makes long concurrent runs much easier to follow.
+- **Automatic failure log** — when any pattern fails, a `sentinel-<timestamp>.log.json` file is written to the current working directory and the path is printed after the summary. This preserves error/warning details for later inspection without needing to re-run.
+
 ## [0.2.5] - 2026-05-16
 
 ### Fixed
