@@ -29,5 +29,11 @@
     "js-yaml": "^4.1.0",
     "p-queue": "^8.0.1",
     "playwright": "^1.44.0"
-  }
+  },
+  "contributors": [
+    {
+      "name": "Jasper Frumau",
+      "email": "jasper@imagewize.com"
+    }
+  ]
 }
