@@ -8,7 +8,18 @@ export async function checkBlockValidation(page) {
     return await page.evaluate(() => {
       const walk = blocks => blocks.flatMap(block => [
         ...(block.isValid === false
-          ? [{ blockId: block.clientId, blockName: block.name, error: 'Block validation failed' }]
+          ? [{
+              blockId:          block.clientId,
+              blockName:        block.name,
+              error:            'Block validation failed',
+              validationIssues: (block.validationIssues ?? []).map(issue => {
+                try {
+                  return (issue.args ?? [])
+                    .map(a => (typeof a === 'string' ? a : JSON.stringify(a)))
+                    .join(' ');
+                } catch { return 'unknown issue'; }
+              }),
+            }]
           : []),
         ...walk(block.innerBlocks ?? []),
       ]);

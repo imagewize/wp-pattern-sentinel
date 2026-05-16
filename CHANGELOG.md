@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.0.0] - 2026-05-17
+
+### Fixed
+- **`block_validation` errors now include Gutenberg's human-readable issue messages** — `checkBlockValidation` extracts `block.validationIssues` from the Gutenberg store and surfaces each issue's `args` string in the terminal output. Previously the log only showed `"Block validation failed"` with no indication of which attribute or class was wrong; now you see e.g. `"Expected attribute 'class' of value '…' but got '…'"` without needing to open the browser console.
+- **`savedContent` written to log for failing patterns** — `writeLogFile` now includes the `savedContent` field (the editor's serialized output) for every pattern that did not pass. This lets you diff the log against the source file directly to identify what the editor changed:
+  ```bash
+  node -e "
+    const log = JSON.parse(require('fs').readFileSync('sentinel-*.log.json'));
+    const r = log.results.find(r => !r.passed);
+    console.log(r.savedContent);
+  " | diff - patterns/my-pattern.php
+  ```
+
 ## [0.3.0] - 2026-05-16
 
 ### Added
