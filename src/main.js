@@ -2,6 +2,7 @@ import { chromium } from 'playwright';
 import PQueue from 'p-queue';
 import path from 'path';
 import fs from 'fs';
+import crypto from 'crypto';
 import { parseArgs, resolveFiles } from './args.js';
 import { loginToWordPress } from './login.js';
 import {
@@ -14,13 +15,76 @@ import {
 import { checkBlockValidation, compareContent } from './validation.js';
 import { log, formatResult, printSummary } from './format.js';
 
+const CACHE_FILE = '.sentinel-cache.json';
+
+function loadCache() {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(process.cwd(), CACHE_FILE), 'utf8'));
+  } catch {
+    return {};
+  }
+}
+
+async function saveCache(cache) {
+  try {
+    await fs.promises.writeFile(
+      path.join(process.cwd(), CACHE_FILE),
+      JSON.stringify(cache, null, 2)
+    );
+  } catch { /* ignore */ }
+}
+
+function hashContent(content) {
+  return crypto.createHash('sha256').update(content).digest('hex').slice(0, 12);
+}
+
 export async function main() {
   const options = await parseArgs(process.argv.slice(2));
-  const files   = resolveFiles(options.files);
+
+  if (options.clearCache) {
+    try {
+      fs.unlinkSync(path.join(process.cwd(), CACHE_FILE));
+      log('Cache cleared.', 'green');
+    } catch {
+      log('No cache file found.', 'gray');
+    }
+    if (options.files.length === 0) process.exit(0);
+  }
+
+  let files     = resolveFiles(options.files);
 
   if (files.length === 0) {
     log('No pattern files found.', 'red');
     process.exit(1);
+  }
+
+  // Skip patterns that previously passed with the same file content.
+  const cache = options.cache ? loadCache() : {};
+  const skipped = [];
+  if (options.cache) {
+    const pending = [];
+    for (const file of files) {
+      try {
+        const content = fs.readFileSync(file, 'utf8');
+        const key     = path.relative(process.cwd(), file);
+        if (cache[key]?.passed && cache[key]?.hash === hashContent(content)) {
+          skipped.push(file);
+        } else {
+          pending.push(file);
+        }
+      } catch {
+        pending.push(file);
+      }
+    }
+    files = pending;
+    if (skipped.length > 0) {
+      log(`Skipping ${skipped.length} previously-passed pattern(s) (cached)`, 'gray');
+    }
+  }
+
+  if (files.length === 0) {
+    log('All patterns already validated — nothing to do.', 'green');
+    process.exit(0);
   }
 
   log(`\nFound ${files.length} pattern(s) — concurrency: ${options.concurrency}`, 'cyan');
@@ -82,11 +146,25 @@ export async function main() {
     for (const r of results) console.log(JSON.stringify(r));
   }
 
-  printSummary(results);
+  printSummary(results, skipped.length);
 
-  // Write a log file when any pattern failed so details are preserved for inspection.
+  // Update cache with results from this run.
+  if (options.cache) {
+    for (const result of results) {
+      const key = path.relative(process.cwd(), result.patternPath);
+      if (result.passed) {
+        cache[key] = { hash: result.hash, passed: true, checkedAt: new Date().toISOString() };
+      } else {
+        delete cache[key];
+      }
+    }
+    await saveCache(cache);
+    log(`  Cache updated → ${CACHE_FILE}`, 'gray');
+  }
+
+  // Write a log file on failure, or always when --log is set.
   const hasFailed = results.some(r => !r.passed);
-  if (hasFailed) {
+  if (hasFailed || options.log) {
     const logPath = await writeLogFile(results);
     if (logPath) log(`  Log saved → ${logPath}`, 'gray');
   }
@@ -104,12 +182,12 @@ async function validatePatternFile(patternPath, options, context) {
   try {
     fileContent = await fs.promises.readFile(patternPath, 'utf8');
   } catch (error) {
-    return fail(patternName, startTime, 'file_error', error.message);
+    return fail(patternName, patternPath, startTime, 'file_error', error.message);
   }
 
   const blockContent = extractBlockContent(fileContent);
   if (!blockContent) {
-    return fail(patternName, startTime, 'extraction_error', 'Could not extract block content from file');
+    return fail(patternName, patternPath, startTime, 'extraction_error', 'Could not extract block content from file');
   }
 
   const page = await context.newPage();
@@ -118,12 +196,12 @@ async function validatePatternFile(patternPath, options, context) {
   try {
     const pageId = await createDraftPage(page, options.adminUrl);
     if (pageId === null) {
-      return fail(patternName, startTime, 'page_creation_error', 'Failed to create test page');
+      return fail(patternName, patternPath, startTime, 'page_creation_error', 'Failed to create test page');
     }
 
     if (!(await insertPatternIntoEditor(page, blockContent))) {
       await deletePage(page, options.adminUrl, pageId);
-      return fail(patternName, startTime, 'insertion_error', 'Failed to insert pattern into editor');
+      return fail(patternName, patternPath, startTime, 'insertion_error', 'Failed to insert pattern into editor');
     }
 
     const saveResult  = await savePage(page);
@@ -146,6 +224,8 @@ async function validatePatternFile(patternPath, options, context) {
 
     return {
       pattern:      patternName,
+      patternPath,
+      hash:         hashContent(fileContent),
       passed:       saveResult.success && comparison.matches && blockErrors.length === 0,
       errors:       saveResult.errors,
       warnings:     saveResult.warnings,
@@ -155,15 +235,17 @@ async function validatePatternFile(patternPath, options, context) {
 
   } catch (error) {
     log(`Unexpected error — ${patternName}: ${error.message}`, 'red');
-    return fail(patternName, startTime, 'validation_error', error.message);
+    return fail(patternName, patternPath, startTime, 'validation_error', error.message);
   } finally {
     await page.close();
   }
 }
 
-function fail(pattern, startTime, type, message) {
+function fail(pattern, patternPath, startTime, type, message) {
   return {
     pattern,
+    patternPath,
+    hash:     null,
     passed:   false,
     errors:   [{ type, message }],
     warnings: [],

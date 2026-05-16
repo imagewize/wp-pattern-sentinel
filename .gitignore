@@ -1,4 +1,5 @@
 node_modules/
 .env
 *.log
+.sentinel-cache.json
 create-pr.sh

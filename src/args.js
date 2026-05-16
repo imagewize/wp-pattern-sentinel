@@ -34,6 +34,10 @@ const ARG_OPTIONS = {
   concurrency:   { type: 'string',  default: '4' },
   width:         { type: 'string',  default: '1280' },
   height:        { type: 'string',  default: '800' },
+  // Persistence
+  cache:         { type: 'boolean', default: false },
+  'clear-cache': { type: 'boolean', default: false },
+  log:           { type: 'boolean', default: false },
 };
 
 /**
@@ -126,6 +130,9 @@ export async function parseArgs(args) {
     headless:    values.headless,
     json:        values.json,
     keepPage:    values['keep-page'],
+    cache:       values.cache,
+    clearCache:  values['clear-cache'],
+    log:         values.log,
     concurrency: Math.max(1, parseInt(values.concurrency, 10)),
     viewport: {
       width:  parseInt(values.width,  10),

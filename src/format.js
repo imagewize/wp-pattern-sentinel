@@ -28,18 +28,19 @@ export function formatResult(result) {
   return lines.join('\n');
 }
 
-export function printSummary(results) {
+export function printSummary(results, skipped = 0) {
   const passed       = results.filter(r => r.passed).length;
   const failed       = results.filter(r => !r.passed).length;
   const totalErrors  = results.reduce((n, r) => n + r.errors.length, 0);
   const totalWarns   = results.reduce((n, r) => n + r.warnings.length, 0);
   const totalMs      = results.reduce((n, r) => n + r.duration, 0);
-  const avgMs        = Math.round(totalMs / results.length);
+  const avgMs        = results.length > 0 ? Math.round(totalMs / results.length) : 0;
 
   log('\n' + '='.repeat(60));
   log('Validation Summary', 'cyan');
   log('='.repeat(60));
   log(`Patterns  : ${results.length}`);
+  if (skipped > 0) log(`Skipped   : ${skipped} (cached)`, 'gray');
   log(`Passed    : ${passed}`,       passed      > 0 ? 'green'  : 'gray');
   log(`Failed    : ${failed}`,       failed      > 0 ? 'red'    : 'gray');
   log(`Errors    : ${totalErrors}`,  totalErrors > 0 ? 'red'    : 'gray');
