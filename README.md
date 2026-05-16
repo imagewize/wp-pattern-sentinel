@@ -10,19 +10,61 @@ WordPress block validation is a JavaScript concern. The editor's `save()` functi
 
 Credentials are resolved in this order — the first match wins:
 
-1. **CLI flags** — `--url`, `--user`, `--pass`
-2. **Environment variables** — `WP_URL`, `WP_USER`, `WP_PASS`
-3. **`.env` file** — placed in the directory where you run sentinel
-4. **Interactive prompt** — sentinel asks if nothing else is set (password is masked)
+1. **`--trellis` flag** — reads directly from Roots Trellis vault + `wordpress_sites.yml`
+2. **CLI flags** — `--url`, `--user`, `--pass`
+3. **Environment variables** — `WP_URL`, `WP_USER`, `WP_PASS`
+4. **`.env` file** — placed in the directory where you run sentinel
+5. **Interactive prompt** — sentinel asks if nothing else is set (password is masked)
 
-**Quickstart with `.env`:**
+`.env` is git-ignored. Never commit real credentials.
+
+---
+
+## Roots Trellis integration
+
+If your project uses [Roots Trellis](https://roots.io/trellis/), pass `--trellis` and sentinel reads everything it needs from the vault and `wordpress_sites.yml` — no manual credential setup required.
+
+```bash
+# Auto-detect site from cwd, use development env
+sentinel --trellis path/to/patterns/
+
+# Specify a site explicitly
+sentinel --trellis --site=demo.imagewize.com path/to/patterns/
+
+# Validate a multisite subsite
+sentinel --trellis --site=demo.imagewize.com --subsite=store path/to/patterns/
+
+# Staging or production vault
+sentinel --trellis --env=staging --site=imagewize.com path/to/patterns/
+
+# Explicit trellis directory (if auto-discovery fails)
+sentinel --trellis --trellis-dir=/path/to/trellis path/to/patterns/
+```
+
+**Requirements:**
+- `ansible-vault` installed (`brew install ansible` or `pip install ansible`)
+- `trellis/.vault_pass` present (standard Trellis setup)
+
+Sentinel auto-discovers the Trellis directory by walking up from the current working directory. It also auto-detects the site by matching cwd against each site's `local_path` in `wordpress_sites.yml`.
+
+**Trellis flags:**
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--trellis` | — | Enable Trellis credential source |
+| `--trellis-dir` | auto-discover | Path to your `trellis/` directory |
+| `--site` | auto-detect from cwd | Site key, e.g. `demo.imagewize.com` |
+| `--env` | `development` | Trellis environment (`development`, `staging`, `production`) |
+| `--subsite` | — | Multisite subsite slug (appended to URL) |
+
+---
+
+## Quickstart with `.env`
 
 ```bash
 cp .env.example .env
 # edit .env with your site URL and admin credentials
 ```
-
-`.env` is git-ignored. Never commit real credentials.
 
 ---
 

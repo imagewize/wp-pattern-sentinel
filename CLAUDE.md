@@ -47,6 +47,8 @@ src/
 - **Login before queue** — `main()` logs in once per context before any validation starts; no `ensureLoggedIn` in workers
 - **`Promise.all` + map** — all tasks are pushed to the queue simultaneously; `await queue.add()` in a loop would serialize them
 - **`deletePage` via REST API** — uses `/wp-json/wp/v2/pages/{id}?force=true` with the session nonce; non-fatal if it fails
+- **Credential priority** — `--trellis` → CLI flags → env vars → `.env` → interactive prompt
+- **Trellis auto-discovery** — walks up from cwd looking for `group_vars/` to find the trellis dir; auto-selects site by matching cwd against `local_path` in `wordpress_sites.yml`
 
 ## Git Commits
 

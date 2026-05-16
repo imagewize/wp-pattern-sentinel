@@ -2,24 +2,39 @@ import { parseArgs as nodeParseArgs } from 'util';
 import path from 'path';
 import fs from 'fs';
 import { prompt } from './prompt.js';
+import { findTrellisDir, loadTrellisCredentials } from './trellis.js';
 
-// Priority: CLI flag → env var → .env file → interactive prompt
-// Env var names: WP_URL, WP_USER, WP_PASS
+/**
+ * Credential resolution priority:
+ *   1. --trellis flag  → reads Roots Trellis vault + wordpress_sites.yml
+ *   2. CLI flags       → --url, --user, --pass
+ *   3. Env vars        → WP_URL, WP_USER, WP_PASS
+ *   4. .env file       → loaded from cwd automatically
+ *   5. Interactive     → prompted if still missing (password is masked)
+ */
 
 const ARG_OPTIONS = {
-  url:         { type: 'string' },
-  user:        { type: 'string' },
-  pass:        { type: 'string' },
-  headless:    { type: 'boolean', default: true },
-  json:        { type: 'boolean', default: false },
-  'keep-page': { type: 'boolean', default: false },
-  concurrency: { type: 'string',  default: '4' },
-  width:       { type: 'string',  default: '1280' },
-  height:      { type: 'string',  default: '800' },
+  // Credentials
+  url:           { type: 'string' },
+  user:          { type: 'string' },
+  pass:          { type: 'string' },
+  // Trellis integration
+  trellis:       { type: 'boolean', default: false },
+  'trellis-dir': { type: 'string' },
+  site:          { type: 'string' },
+  env:           { type: 'string',  default: 'development' },
+  subsite:       { type: 'string' },
+  // Behaviour
+  headless:      { type: 'boolean', default: true },
+  json:          { type: 'boolean', default: false },
+  'keep-page':   { type: 'boolean', default: false },
+  concurrency:   { type: 'string',  default: '4' },
+  width:         { type: 'string',  default: '1280' },
+  height:        { type: 'string',  default: '800' },
 };
 
 /**
- * Parse a .env file and populate process.env for any keys not already set.
+ * Parse a .env file and add any keys not already in process.env.
  * Supports KEY=value, KEY="value", KEY='value', and # comments.
  * Silently skips if no .env file exists.
  */
@@ -50,25 +65,45 @@ export async function parseArgs(args) {
     allowPositionals: true,
   });
 
-  // Resolve URL: CLI → env → prompt
-  let url = values.url ?? process.env.WP_URL;
-  if (!url) {
-    url = await prompt('WordPress URL (e.g. http://site.test): ');
-    if (!url) throw new Error('WordPress URL is required.');
-  }
+  let url, user, pass;
 
-  // Resolve user: CLI → env → prompt
-  let user = values.user ?? process.env.WP_USER;
-  if (!user) {
-    user = await prompt('WordPress admin username: ');
-    if (!user) throw new Error('WordPress username is required.');
-  }
+  // --- Source 1: Trellis vault ---
+  if (values.trellis) {
+    const trellisDir = values['trellis-dir']
+      ? path.resolve(values['trellis-dir'])
+      : findTrellisDir();
 
-  // Resolve pass: CLI → env → prompt (hidden)
-  let pass = values.pass ?? process.env.WP_PASS;
-  if (!pass) {
-    pass = await prompt('WordPress admin password: ', { hidden: true });
-    if (!pass) throw new Error('WordPress password is required.');
+    ({ url, user, pass } = loadTrellisCredentials({
+      trellisDir,
+      site:    values.site,
+      env:     values.env,
+      subsite: values.subsite ?? null,
+    }));
+
+  } else {
+    // --- Source 2: CLI flags ---
+    url  = values.url;
+    user = values.user;
+    pass = values.pass;
+
+    // --- Source 3+4: Env vars / .env file ---
+    url  ??= process.env.WP_URL;
+    user ??= process.env.WP_USER;
+    pass ??= process.env.WP_PASS;
+
+    // --- Source 5: Interactive prompt ---
+    if (!url) {
+      url = await prompt('WordPress URL (e.g. http://site.test): ');
+      if (!url) throw new Error('WordPress URL is required.');
+    }
+    if (!user) {
+      user = await prompt('WordPress admin username: ');
+      if (!user) throw new Error('WordPress username is required.');
+    }
+    if (!pass) {
+      pass = await prompt('WordPress admin password: ', { hidden: true });
+      if (!pass) throw new Error('WordPress password is required.');
+    }
   }
 
   return {
@@ -91,13 +126,12 @@ export function resolveFiles(filePaths) {
   if (!filePaths || filePaths.length === 0) {
     throw new Error(
       'No pattern files specified.\n' +
-      'Usage: sentinel path/to/patterns/\n' +
-      'Credentials: set WP_URL, WP_USER, WP_PASS in .env or pass as --url/--user/--pass flags.'
+      'Usage: sentinel [--trellis [--site=example.com]] path/to/patterns/\n' +
+      'Or set WP_URL, WP_USER, WP_PASS in .env'
     );
   }
 
   const resolved = [];
-
   for (const filePath of filePaths) {
     const abs = path.resolve(filePath);
     if (!fs.existsSync(abs)) {
@@ -111,7 +145,6 @@ export function resolveFiles(filePaths) {
       resolved.push(abs);
     }
   }
-
   return [...new Set(resolved)];
 }
 
