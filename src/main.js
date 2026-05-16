@@ -38,7 +38,7 @@ export async function main() {
         const context = await browser.newContext({ viewport: options.viewport });
         const page    = await context.newPage();
         page.setDefaultTimeout(60000);
-        const ok = await loginToWordPress(page, options.url, options.user, options.pass);
+        const ok = await loginToWordPress(page, options.adminUrl, options.user, options.pass);
         await page.close();
         if (!ok) throw new Error('Failed to authenticate with WordPress');
         return context;
@@ -94,13 +94,13 @@ async function validatePatternFile(patternPath, options, context) {
   page.setDefaultTimeout(60000);
 
   try {
-    const pageId = await createDraftPage(page, options.url);
+    const pageId = await createDraftPage(page, options.adminUrl);
     if (pageId === null) {
       return fail(patternName, startTime, 'page_creation_error', 'Failed to create test page');
     }
 
     if (!(await insertPatternIntoEditor(page, blockContent))) {
-      await deletePage(page, options.url, pageId);
+      await deletePage(page, options.adminUrl, pageId);
       return fail(patternName, startTime, 'insertion_error', 'Failed to insert pattern into editor');
     }
 
@@ -119,7 +119,7 @@ async function validatePatternFile(patternPath, options, context) {
     saveResult.warnings.push(...comparison.warnings);
 
     if (!options.keepPage) {
-      await deletePage(page, options.url, pageId);
+      await deletePage(page, options.adminUrl, pageId);
     }
 
     return {

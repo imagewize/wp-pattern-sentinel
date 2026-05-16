@@ -108,6 +108,26 @@ export function loadTrellisCredentials({ trellisDir, site, env = 'development', 
     ? `${protocol}://${canonical}/${subsite}`
     : `${protocol}://${canonical}`;
 
+  // For the main site, detect Bedrock's WP core subdir via WP_SITEURL in local .env.
+  // Bedrock puts WP core at /wp/, so admin ops must target /wp/wp-admin/ not /wp-admin/.
+  // Subsites are accessed at /<subsite>/wp-admin/ and don't carry the /wp/ prefix.
+  let adminUrl = url;
+  if (!subsite) {
+    const localPath = wordpressSites[siteKey].local_path;
+    if (localPath) {
+      const envFile = path.join(path.resolve(trellisDir, localPath), '.env');
+      if (fs.existsSync(envFile)) {
+        try {
+          const envContent = fs.readFileSync(envFile, 'utf8');
+          const match = envContent.match(/^WP_SITEURL=["']?(.+?)["']?\s*$/m);
+          if (match) adminUrl = match[1].trim();
+        } catch {
+          // Fall back to url
+        }
+      }
+    }
+  }
+
   // Trellis admin username is always "admin" — not stored in the vault
-  return { url, user: 'admin', pass: adminPassword };
+  return { url, adminUrl, user: 'admin', pass: adminPassword };
 }

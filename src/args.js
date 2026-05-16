@@ -24,6 +24,9 @@ const ARG_OPTIONS = {
   site:          { type: 'string' },
   env:           { type: 'string',  default: 'development' },
   subsite:       { type: 'string' },
+  // Bedrock / WP core subdir (e.g. "wp" for Bedrock installs where core lives at /wp/)
+  // Auto-detected via WP_SITEURL when --trellis is used; set manually otherwise.
+  'wp-subdir':   { type: 'string' },
   // Behaviour
   headless:      { type: 'boolean', default: true },
   json:          { type: 'boolean', default: false },
@@ -65,7 +68,7 @@ export async function parseArgs(args) {
     allowPositionals: true,
   });
 
-  let url, user, pass;
+  let url, adminUrl, user, pass;
 
   // --- Source 1: Trellis vault ---
   if (values.trellis) {
@@ -73,7 +76,7 @@ export async function parseArgs(args) {
       ? path.resolve(values['trellis-dir'])
       : findTrellisDir();
 
-    ({ url, user, pass } = loadTrellisCredentials({
+    ({ url, adminUrl, user, pass } = loadTrellisCredentials({
       trellisDir,
       site:    values.site,
       env:     values.env,
@@ -104,10 +107,20 @@ export async function parseArgs(args) {
       pass = await prompt('WordPress admin password: ', { hidden: true });
       if (!pass) throw new Error('WordPress password is required.');
     }
+
+    // --wp-subdir: manually specify the WP core subdir (e.g. "wp" for Bedrock)
+    const wpSubdir = values['wp-subdir'];
+    adminUrl = wpSubdir
+      ? `${url.replace(/\/$/, '')}/${wpSubdir}`
+      : url;
   }
 
+  const cleanUrl      = url.replace(/\/$/, '');
+  const cleanAdminUrl = (adminUrl ?? url).replace(/\/$/, '');
+
   return {
-    url:         url.replace(/\/$/, ''),
+    url:         cleanUrl,
+    adminUrl:    cleanAdminUrl,
     user,
     pass,
     headless:    values.headless,

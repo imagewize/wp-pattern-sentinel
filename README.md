@@ -57,6 +57,8 @@ Sentinel auto-discovers the Trellis directory by walking up from the current wor
 | `--env` | `development` | Trellis environment (`development`, `staging`, `production`) |
 | `--subsite` | — | Multisite subsite slug (appended to URL) |
 
+**Bedrock support:** When `--trellis` is used, sentinel auto-detects Bedrock installs by reading `WP_SITEURL` from the site's `.env` file. Bedrock puts WordPress core in `/wp/`, so admin URLs become `/wp/wp-admin/` instead of `/wp-admin/`. No extra flags needed — this is handled automatically.
+
 ---
 
 ## Quickstart with `.env`
@@ -111,6 +113,7 @@ node bin/sentinel.js --concurrency=6 --url=... path/to/patterns/
 | `--url` | `http://localhost` | WordPress site URL |
 | `--user` | `admin` | Admin username |
 | `--pass` | `password` | Admin password |
+| `--wp-subdir` | — | WP core subdir when not using `--trellis` (e.g. `wp` for Bedrock). Sets admin URL to `{url}/{subdir}`. Auto-detected from `WP_SITEURL` when `--trellis` is used. |
 | `--headless` | `true` | Run browser headless |
 | `--concurrency` | `4` | Parallel workers |
 | `--json` | `false` | Output JSON (one result per line) |
