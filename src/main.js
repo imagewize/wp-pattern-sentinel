@@ -15,7 +15,7 @@ import { checkBlockValidation, compareContent } from './validation.js';
 import { log, formatResult, printSummary } from './format.js';
 
 export async function main() {
-  const options = parseArgs(process.argv.slice(2));
+  const options = await parseArgs(process.argv.slice(2));
   const files   = resolveFiles(options.files);
 
   if (files.length === 0) {

@@ -6,6 +6,26 @@ Browser-based WordPress block pattern validator. Loads each pattern into the Gut
 
 WordPress block validation is a JavaScript concern. The editor's `save()` function can inject styles, reorder CSS classes, and drop attributes in ways that PHP cannot replicate. Only a real browser can catch these errors.
 
+## Credentials
+
+Credentials are resolved in this order — the first match wins:
+
+1. **CLI flags** — `--url`, `--user`, `--pass`
+2. **Environment variables** — `WP_URL`, `WP_USER`, `WP_PASS`
+3. **`.env` file** — placed in the directory where you run sentinel
+4. **Interactive prompt** — sentinel asks if nothing else is set (password is masked)
+
+**Quickstart with `.env`:**
+
+```bash
+cp .env.example .env
+# edit .env with your site URL and admin credentials
+```
+
+`.env` is git-ignored. Never commit real credentials.
+
+---
+
 ## Install
 
 ```bash
@@ -16,7 +36,10 @@ npx playwright install chromium
 ## Usage
 
 ```bash
-# Validate a directory of patterns
+# Minimal — credentials come from .env
+node bin/sentinel.js path/to/patterns/
+
+# Validate a directory (credentials via flags)
 node bin/sentinel.js \
   --url=http://imagewize.test \
   --user=admin \
@@ -24,8 +47,7 @@ node bin/sentinel.js \
   path/to/patterns/
 
 # Validate specific files
-node bin/sentinel.js --url=http://imagewize.test --user=admin --pass=secret \
-  patterns/hero.php patterns/cta.php
+node bin/sentinel.js patterns/hero.php patterns/cta.php
 
 # JSON output (one result object per line)
 node bin/sentinel.js --json --url=... path/to/patterns/
