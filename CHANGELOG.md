@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.0.2] - 2026-05-17
+
+### Added
+- **MIT License** — `LICENSE` file added to the repository.
+
+### Fixed
+- **CSS property reordering no longer triggers false `content_mismatch`** — WordPress canonicalises the declaration order of CSS properties inside `style="..."` HTML attributes when a block is saved. `compareContent` now sorts all CSS property declarations within `style` attributes alphabetically on both sides before diffing, so patterns with a different-but-equivalent property order pass cleanly.
+- **Block attribute JSON key reordering no longer triggers false `content_mismatch`** — WordPress serialises block-comment JSON attributes in a block-type-specific canonical order that differs from the authoring order. `compareContent` now deep-sorts all JSON object keys alphabetically in both the pattern source and the editor output before diffing, eliminating false positives caused by attribute key order alone.
+- **`esc_html_e()` strings with `&` no longer trigger false `content_mismatch`** — `stripPhpForValidation` previously extracted raw PHP string literals without HTML-encoding, so `'Licensed & Insured'` became the literal ampersand `&` in the block content sent to the editor. WordPress saves the correct HTML-encoded form `&amp;`; the two sides therefore diffed. The extractor now mirrors what PHP's `esc_html` functions produce, encoding `&`, `<`, `>`, and `"` before the content is sent to the browser.
+
 ## [1.0.1] - 2026-05-17
 
 ### Fixed
