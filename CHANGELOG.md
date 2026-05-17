@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.1] - 2026-05-17
+
+### Fixed
+- **Navigation block `ref` injection no longer triggers false `content_mismatch`** — WordPress automatically assigns a `ref` (nav menu post ID) to `wp:navigation` blocks when a pattern is first opened in the editor. All FSE themes (Ollie, Twenty Twenty-Five, Elayne) ship navigation patterns without a `ref`; it is expected editor behaviour, not a pattern defect. `compareContent` now strips `"ref":<id>` from `wp:navigation` block comments on both sides before diffing.
+
 ## [1.0.0] - 2026-05-17
 
 ### Fixed
