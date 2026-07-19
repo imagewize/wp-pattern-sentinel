@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.3] - 2026-07-19
+
+### Fixed
+- **Patterns with a direct-access guard between the docblock and the closing PHP tag now extract correctly** — `extractBlockContent` previously stripped the opening `<?php` tag, the docblock, and the closing `?>` as three separate regex passes, each anchored to the start of the (progressively shortened) string. That only worked when the header was docblock-then-`?>` with nothing else in between. Plugins like Aludra require an `if ( ! defined( 'ABSPATH' ) ) { exit; }` guard in every pattern file (so Plugin Check doesn't flag `missing_direct_file_access_protection`), which sits between the docblock and `?>` — the old three-pass strip left that guard's code in place and failed the `startsWith('<!--')` check, reporting a false `extraction_error`. The header is now stripped in one pass — everything up to and including the *first* `?>` — which handles both the docblock-only shape (Elayne) and the docblock-plus-guard shape (Aludra) identically.
+
 ## [1.0.2] - 2026-05-17
 
 ### Added

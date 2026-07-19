@@ -29,10 +29,11 @@ function stripPhpForValidation(content) {
 }
 
 /**
- * Strip the PHP file header (opening tag + docblock) and return the raw block markup.
- * Inline PHP expressions within the block markup are replaced with static values
- * so the editor receives valid content for round-trip validation.
- * Returns null if no block comment is found.
+ * Strip the PHP file header (opening tag, docblock, and any header-only PHP
+ * such as a direct-access guard) and return the raw block markup. Inline PHP
+ * expressions within the block markup are replaced with static values so the
+ * editor receives valid content for round-trip validation. Returns null if no
+ * block comment is found.
  *
  * WordPress pattern files look like:
  *   <?php
@@ -40,14 +41,20 @@ function stripPhpForValidation(content) {
  *    * Title: My Pattern
  *    * ...
  *    *\/
+ *
+ *   if ( ! defined( 'ABSPATH' ) ) {
+ *       exit; // Optional direct-access guard (e.g. Aludra patterns).
+ *   }
  *   ?>
  *   <!-- wp:group -->...
+ *
+ * The header is everything up to and including the *first* closing PHP tag,
+ * regardless of what it contains (docblock only, or docblock + guard) — so a
+ * single non-greedy strip handles both shapes in one pass.
  */
 export function extractBlockContent(fileContent) {
   const stripped = fileContent
-    .replace(/^<\?php\s*/m, '')
-    .replace(/\/\*\*[\s\S]*?\*\//m, '')
-    .replace(/^\s*\?>\s*/m, '')
+    .replace(/^[\s\S]*?\?>\s*/, '')
     .trim();
 
   if (!stripped.startsWith('<!--')) return null;
