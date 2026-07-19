@@ -25,6 +25,10 @@
     "validation"
   ],
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/imagewize/wp-pattern-sentinel"
+  },
   "dependencies": {
     "js-yaml": "^4.1.0",
     "p-queue": "^8.0.1",
