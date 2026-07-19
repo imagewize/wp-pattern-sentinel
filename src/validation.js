@@ -76,9 +76,19 @@ const normalizeBlockAttrJson = str => {
   });
 };
 
+/**
+ * Collapse whitespace (including newlines) between adjacent tags/comments to
+ * nothing. Custom blocks that render their wrapper markup via JSX (e.g.
+ * `<div><div className="inner">...`) serialize with zero whitespace between
+ * elements, while hand-authored pattern PHP conventionally puts each nested
+ * element on its own line for readability. That's insignificant whitespace —
+ * browsers treat it identically — so it must not produce a content_mismatch.
+ */
+const collapseInterTagWhitespace = str => str.replace(/>\s+</g, '><');
+
 /** Apply all WordPress serializer normalizations to both sides before diffing. */
 const normalizeForComparison = str =>
-  normalizeBlockAttrJson(normalizeCssProps(stripNavRef(str)));
+  collapseInterTagWhitespace(normalizeBlockAttrJson(normalizeCssProps(stripNavRef(str))));
 
 /**
  * Compare the editor's serialized output against the original source.

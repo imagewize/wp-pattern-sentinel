@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.4] - 2026-07-19
+
+### Fixed
+- **Insignificant inter-tag whitespace no longer triggers false `content_mismatch`** — custom blocks that render wrapper markup via JSX (e.g. `<div><div className="inner">...`) serialize with zero whitespace between adjacent elements, while hand-authored pattern PHP conventionally puts nested elements on their own line for readability. Browsers treat that whitespace as insignificant, but `compareContent` was diffing it literally. `normalizeForComparison` now collapses whitespace between adjacent tags/comments (`.replace(/>\s+</g, '><')`) on both sides before comparing, alongside the existing CSS-property and JSON-key normalization.
+
 ## [1.0.3] - 2026-07-19
 
 ### Fixed
