@@ -31,6 +31,7 @@ const ARG_OPTIONS = {
   headless:      { type: 'boolean', default: true },
   json:          { type: 'boolean', default: false },
   'keep-page':   { type: 'boolean', default: false },
+  verbose:       { type: 'boolean', default: false },
   concurrency:   { type: 'string',  default: '4' },
   width:         { type: 'string',  default: '1280' },
   height:        { type: 'string',  default: '800' },
@@ -138,6 +139,7 @@ export async function parseArgs(args) {
       width:  parseInt(values.width,  10),
       height: parseInt(values.height, 10),
     },
+    verbose:     values.verbose,
     files: positionals,
   };
 }

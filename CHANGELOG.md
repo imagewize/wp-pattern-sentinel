@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.1.0] - 2026-07-28
+
+### Added
+- **`--verbose` flag** — Shows detailed step-by-step progress for each pattern validation, including: creating draft page, inserting pattern into editor, saving page, checking block validation, comparing content, and deleting draft page. Useful for debugging which step is taking time during long validation runs.
+
 ## [1.0.4] - 2026-07-19
 
 ### Fixed

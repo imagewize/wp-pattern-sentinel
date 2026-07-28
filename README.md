@@ -104,6 +104,9 @@ node bin/sentinel.js --no-headless --url=... path/to/patterns/
 
 # Adjust concurrency (default: 4)
 node bin/sentinel.js --concurrency=6 --url=... path/to/patterns/
+
+# Show verbose step-by-step output
+node bin/sentinel.js --verbose --url=... path/to/patterns/
 ```
 
 ## Options
@@ -118,6 +121,7 @@ node bin/sentinel.js --concurrency=6 --url=... path/to/patterns/
 | `--concurrency` | `4` | Parallel workers |
 | `--json` | `false` | Output JSON (one result per line) |
 | `--keep-page` | `false` | Don't delete draft pages after validation |
+| `--verbose` | `false` | Show detailed step-by-step progress for each pattern |
 | `--width` | `1280` | Viewport width |
 | `--height` | `800` | Viewport height |
 | `--cache` | `false` | Skip patterns that previously passed with the same file content (see [Pass cache](#pass-cache)) |

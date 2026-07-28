@@ -3,9 +3,10 @@ import { log } from './format.js';
 /**
  * Walk the block tree and collect any blocks where isValid === false.
  */
-export async function checkBlockValidation(page) {
+export async function checkBlockValidation(page, verbose = false) {
+  if (verbose) log('    → Checking block validation...', 'gray');
   try {
-    return await page.evaluate(() => {
+    const errors = await page.evaluate(() => {
       const walk = blocks => blocks.flatMap(block => [
         ...(block.isValid === false
           ? [{
@@ -25,6 +26,8 @@ export async function checkBlockValidation(page) {
       ]);
       return walk(window.wp.data.select('core/block-editor').getBlocks());
     });
+    if (verbose) log('    → Block validation complete', 'gray');
+    return errors;
   } catch (error) {
     log(`Block validation check error: ${error.message}`, 'yellow');
     return [];
@@ -95,17 +98,21 @@ const normalizeForComparison = str =>
  * Whitespace-normalizes both sides before diffing to avoid false positives
  * from indentation changes, then surfaces up to 5 added/removed lines.
  */
-export async function compareContent(page, originalContent) {
+export async function compareContent(page, originalContent, verbose = false) {
   const result = { matches: true, errors: [], warnings: [], savedContent: null };
 
   try {
+    if (verbose) log('    → Comparing content...', 'gray');
     const savedContent = await page.evaluate(() =>
       window.wp.data.select('core/editor').getEditedPostContent()
     );
     result.savedContent = savedContent;
 
     const normalize = str => str.replace(/\s+/g, ' ').trim();
-    if (normalize(normalizeForComparison(savedContent)) === normalize(normalizeForComparison(originalContent))) return result;
+    if (normalize(normalizeForComparison(savedContent)) === normalize(normalizeForComparison(originalContent))) {
+      if (verbose) log('    → Content matches', 'gray');
+      return result;
+    }
 
     result.matches = false;
 
@@ -127,6 +134,7 @@ export async function compareContent(page, originalContent) {
         message: `Content injected by editor:\n    ${added.join('\n    ')}`,
       });
     }
+    if (verbose) log('    → Content comparison complete', 'gray');
   } catch (error) {
     result.errors.push({ type: 'comparison_error', message: error.message });
   }
