@@ -66,8 +66,9 @@ export function extractBlockContent(fileContent) {
  * WordPress redirects post-new.php → post.php?post=ID&action=edit,
  * so we can read the ID directly from the final URL.
  */
-export async function createDraftPage(page, baseUrl) {
+export async function createDraftPage(page, baseUrl, verbose = false) {
   try {
+    if (verbose) log('    → Creating draft page...', 'gray');
     await page.goto(`${baseUrl}/wp-admin/post-new.php?post_type=page`, {
       waitUntil: 'domcontentloaded',
       timeout: 30000,
@@ -79,12 +80,17 @@ export async function createDraftPage(page, baseUrl) {
 
     const url = page.url();
     const match = url.match(/[?&]post=(\d+)/);
-    if (match) return parseInt(match[1], 10);
+    if (match) {
+      if (verbose) log('    → Draft page created', 'gray');
+      return parseInt(match[1], 10);
+    }
 
     // Fallback: read from wp.data (editor may not have redirected yet)
-    return await page.evaluate(() =>
+    const pageId = await page.evaluate(() =>
       window.wp?.data?.select('core/editor')?.getCurrentPostId?.() ?? null
     );
+    if (verbose && pageId) log('    → Draft page created', 'gray');
+    return pageId;
   } catch (error) {
     log(`Failed to create draft page: ${error.message}`, 'red');
     return null;
@@ -94,8 +100,9 @@ export async function createDraftPage(page, baseUrl) {
 /**
  * Set the editor content via wp.data and wait for blocks to parse.
  */
-export async function insertPatternIntoEditor(page, blockContent) {
+export async function insertPatternIntoEditor(page, blockContent, verbose = false) {
   try {
+    if (verbose) log('    → Inserting pattern into editor...', 'gray');
     await page.evaluate(content => {
       window.wp.data.dispatch('core/editor').editPost({ content });
     }, blockContent);
@@ -106,6 +113,7 @@ export async function insertPatternIntoEditor(page, blockContent) {
       { timeout: 15000 }
     );
 
+    if (verbose) log('    → Pattern inserted', 'gray');
     return true;
   } catch (error) {
     log(`Failed to insert pattern: ${error.message}`, 'red');
@@ -116,9 +124,10 @@ export async function insertPatternIntoEditor(page, blockContent) {
 /**
  * Trigger savePost() and wait for the editor to finish saving.
  */
-export async function savePage(page) {
+export async function savePage(page, verbose = false) {
   const result = { success: false, errors: [], warnings: [] };
   try {
+    if (verbose) log('    → Saving page...', 'gray');
     await page.evaluate(() => window.wp.data.dispatch('core/editor').savePost());
 
     // Wait for save to start, then finish
@@ -134,6 +143,7 @@ export async function savePage(page) {
       { timeout: 30000 }
     );
 
+    if (verbose) log('    → Page saved', 'gray');
     result.success = true;
   } catch (error) {
     result.errors.push({ type: 'save_error', message: error.message });
@@ -145,8 +155,9 @@ export async function savePage(page) {
  * Delete the draft page via the WP REST API (uses the active browser session's nonce).
  * Non-fatal — a failure here does not affect validation results.
  */
-export async function deletePage(page, baseUrl, pageId) {
+export async function deletePage(page, baseUrl, pageId, verbose = false) {
   try {
+    if (verbose) log('    → Deleting draft page...', 'gray');
     await page.evaluate(async id => {
       const nonce = window.wpApiSettings?.nonce ?? '';
       await fetch(`/wp-json/wp/v2/pages/${id}?force=true`, {
@@ -154,6 +165,7 @@ export async function deletePage(page, baseUrl, pageId) {
         headers: { 'X-WP-Nonce': nonce },
       });
     }, pageId);
+    if (verbose) log('    → Draft page deleted', 'gray');
   } catch {
     // Non-fatal
   }

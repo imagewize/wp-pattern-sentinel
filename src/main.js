@@ -175,6 +175,7 @@ export async function main() {
 async function validatePatternFile(patternPath, options, context) {
   const patternName = path.basename(patternPath);
   const startTime   = Date.now();
+  const verbose     = options.verbose;
 
   log(`  Validating: ${patternName}`, 'cyan');
 
@@ -194,18 +195,18 @@ async function validatePatternFile(patternPath, options, context) {
   page.setDefaultTimeout(60000);
 
   try {
-    const pageId = await createDraftPage(page, options.adminUrl);
+    const pageId = await createDraftPage(page, options.adminUrl, verbose);
     if (pageId === null) {
       return fail(patternName, patternPath, startTime, 'page_creation_error', 'Failed to create test page');
     }
 
-    if (!(await insertPatternIntoEditor(page, blockContent))) {
-      await deletePage(page, options.adminUrl, pageId);
+    if (!(await insertPatternIntoEditor(page, blockContent, verbose))) {
+      await deletePage(page, options.adminUrl, pageId, verbose);
       return fail(patternName, patternPath, startTime, 'insertion_error', 'Failed to insert pattern into editor');
     }
 
-    const saveResult  = await savePage(page);
-    const blockErrors = await checkBlockValidation(page);
+    const saveResult  = await savePage(page, verbose);
+    const blockErrors = await checkBlockValidation(page, verbose);
 
     if (blockErrors.length > 0) {
       saveResult.errors.push(...blockErrors.map(e => ({
@@ -218,12 +219,12 @@ async function validatePatternFile(patternPath, options, context) {
       })));
     }
 
-    const comparison = await compareContent(page, blockContent);
+    const comparison = await compareContent(page, blockContent, verbose);
     saveResult.errors.push(...comparison.errors);
     saveResult.warnings.push(...comparison.warnings);
 
     if (!options.keepPage) {
-      await deletePage(page, options.adminUrl, pageId);
+      await deletePage(page, options.adminUrl, pageId, verbose);
     }
 
     return {
