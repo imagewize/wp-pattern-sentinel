@@ -1,5 +1,9 @@
 # wp-pattern-sentinel
 
+[![npm version](https://img.shields.io/npm/v/@imwz/wp-pattern-sentinel.svg)](https://www.npmjs.com/package/@imwz/wp-pattern-sentinel)
+[![npm downloads](https://img.shields.io/npm/dt/@imwz/wp-pattern-sentinel.svg)](https://www.npmjs.com/package/@imwz/wp-pattern-sentinel)
+[![License](https://img.shields.io/npm/l/@imwz/wp-pattern-sentinel.svg)](https://github.com/imagewize/wp-pattern-sentinel/blob/main/package.json)
+
 Browser-based WordPress block pattern validator. Loads each pattern into the Gutenberg editor via Playwright, saves it, and checks for block validation errors and content mismatches.
 
 ## Why browser-based?
