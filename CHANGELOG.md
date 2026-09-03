@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.1.1] - 2026-09-03
+
+### Security
+- **Bumped `js-yaml` to `^4.3.1`** — fixes [GHSA-5p4m-2wfm-xmqj](https://github.com/imagewize/wp-pattern-sentinel/security/dependabot/3), a high-severity quadratic CPU consumption (DoS) bug in `!!omap` resolution present in `js-yaml` 4.0.0–4.3.0. `js-yaml` is used to parse Trellis's `wordpress_sites.yml` during `--trellis` auto-discovery; a crafted YAML file could otherwise stall the process for seconds on a small input.
+
 ## [1.1.0] - 2026-07-28
 
 ### Added
