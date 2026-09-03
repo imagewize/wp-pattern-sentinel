@@ -1,6 +1,6 @@
 {
   "name": "@imwz/wp-pattern-sentinel",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Browser-based WordPress block pattern validator using Playwright",
   "type": "module",
   "engines": {
@@ -30,7 +30,7 @@
     "url": "https://github.com/imagewize/wp-pattern-sentinel"
   },
   "dependencies": {
-    "js-yaml": "^4.1.0",
+    "js-yaml": "^4.3.1",
     "p-queue": "^8.0.1",
     "playwright": "^1.44.0"
   },
