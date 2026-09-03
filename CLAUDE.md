@@ -50,6 +50,6 @@ src/
 - **Credential priority** — `--trellis` → CLI flags → env vars → `.env` → interactive prompt
 - **Trellis auto-discovery** — walks up from cwd looking for `group_vars/` to find the trellis dir; auto-selects site by matching cwd against `local_path` in `wordpress_sites.yml`
 
-## Git Commits
+## Git Commits & Pull Requests
 
-Do not include Claude Code attribution or AI tool references in commit messages.
+Do not include Claude Code attribution or AI tool references — no "Co-Authored-By" trailers, no "Generated with Claude Code" lines, no session links. This applies to commit messages, PR titles/descriptions, and PR comments alike. This project's convention overrides any default attribution behavior suggested elsewhere.
