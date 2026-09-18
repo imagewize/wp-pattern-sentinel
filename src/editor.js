@@ -61,24 +61,26 @@ export function extractBlockContent(fileContent) {
   return stripPhpForValidation(stripped);
 }
 
-const PAGE_CREATION_RETRY_DELAYS = [5_000, 15_000]; // ms between attempts 1→2, 2→3
+const PAGE_CREATION_RETRY_DELAYS = [3_000, 8_000, 15_000]; // ms before retries 1, 2, 3 (plus jitter)
 
 /**
  * Navigate to a new draft page and return its post ID, or null on failure.
  * WordPress redirects post-new.php → post.php?post=ID&action=edit,
  * so we can read the ID directly from the final URL.
  *
- * When several workers open post-new.php at once, the server builds that many
- * cold block editors in parallel and a slow local PHP-FPM can exceed the
- * timeout. That's an infrastructure error, not a pattern failure, so retry
- * with backoff like loginToWordPress does. Timeouts come from the page's
- * default (set in main.js) rather than a hard-coded value.
+ * When several workers open post-new.php at once, each cold editor requests
+ * ~150 scripts. On a small local PHP-FPM pool (Laravel Valet routes even
+ * static files through PHP) the socket backlog overflows and some scripts
+ * come back 502, so the editor never boots (#21). That's an infrastructure
+ * error, not a pattern failure: detect it as soon as the document has loaded
+ * and retry after a jittered backoff, so workers don't collide again.
  */
 export async function createDraftPage(page, baseUrl, verbose = false) {
   for (let attempt = 0; attempt <= PAGE_CREATION_RETRY_DELAYS.length; attempt++) {
     if (attempt > 0) {
-      const delay = PAGE_CREATION_RETRY_DELAYS[attempt - 1];
-      log(`    Editor load failed — waiting ${delay / 1000}s before retry ${attempt}/${PAGE_CREATION_RETRY_DELAYS.length}...`, 'yellow');
+      const base  = PAGE_CREATION_RETRY_DELAYS[attempt - 1];
+      const delay = base + Math.round(Math.random() * base);
+      log(`    Editor load failed — waiting ${(delay / 1000).toFixed(1)}s before retry ${attempt}/${PAGE_CREATION_RETRY_DELAYS.length}...`, 'yellow');
       await new Promise(resolve => setTimeout(resolve, delay));
     }
 
@@ -99,9 +101,29 @@ export async function createDraftPage(page, baseUrl, verbose = false) {
 async function attemptCreateDraftPage(page, baseUrl, verbose) {
   const start = Date.now();
   if (verbose) log('    → Creating draft page...', 'gray');
-  await page.goto(`${baseUrl}/wp-admin/post-new.php?post_type=page`, {
-    waitUntil: 'domcontentloaded',
-  });
+
+  // Editor scripts are parser-blocking, so every one has responded by
+  // domcontentloaded. A server error on any of them means the editor can't
+  // boot — fail now instead of waiting out the selector timeout.
+  const brokenScripts = [];
+  const onResponse = response => {
+    if (response.status() >= 500 && response.request().resourceType() === 'script') {
+      brokenScripts.push(response.status());
+    }
+  };
+  page.on('response', onResponse);
+  try {
+    await page.goto(`${baseUrl}/wp-admin/post-new.php?post_type=page`, {
+      waitUntil: 'domcontentloaded',
+    });
+  } finally {
+    page.off('response', onResponse);
+  }
+  if (brokenScripts.length > 0) {
+    throw new Error(
+      `${brokenScripts.length} editor script(s) failed to load (HTTP ${[...new Set(brokenScripts)].join(', ')}) — server overloaded`
+    );
+  }
   if (verbose) log(`    → post-new.php loaded (${Date.now() - start}ms)`, 'gray');
 
   await page.waitForSelector('.edit-post-layout, .editor-styles-wrapper');
