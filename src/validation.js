@@ -94,6 +94,33 @@ const normalizeForComparison = str =>
   collapseInterTagWhitespace(normalizeBlockAttrJson(normalizeCssProps(stripNavRef(str))));
 
 /**
+ * Matches a nested pattern reference: `<!-- wp:pattern {"slug":"theme/x"} /-->`.
+ * The editor replaces these with the referenced pattern's blocks, so the
+ * source must be expanded the same way before it can be diffed.
+ */
+const PATTERN_REF = /<!-- wp:pattern (\{[\s\S]*?\}) \/-->/g;
+
+/** Map of registered pattern name → raw content, read from the REST API. */
+const fetchRegisteredPatterns = page =>
+  page.evaluate(async () => {
+    const patterns = await window.wp.apiFetch({ path: '/wp/v2/block-patterns/patterns' });
+    return Object.fromEntries(patterns.map(p => [p.name, p.content]));
+  });
+
+/**
+ * Recursively substitute each `wp:pattern` reference with the referenced
+ * pattern's content. Unregistered slugs and self-references are left as-is,
+ * mirroring the editor, which leaves those `core/pattern` blocks unexpanded.
+ */
+const expandPatternRefs = (str, registry, seen = []) =>
+  str.replace(PATTERN_REF, (match, json) => {
+    let slug;
+    try { slug = JSON.parse(json).slug; } catch { return match; }
+    if (typeof registry[slug] !== 'string' || seen.includes(slug)) return match;
+    return expandPatternRefs(registry[slug], registry, [...seen, slug]);
+  });
+
+/**
  * Compare the editor's serialized output against the original source.
  * Whitespace-normalizes both sides before diffing to avoid false positives
  * from indentation changes, then surfaces up to 5 added/removed lines.
@@ -107,6 +134,17 @@ export async function compareContent(page, originalContent, verbose = false) {
       window.wp.data.select('core/editor').getEditedPostContent()
     );
     result.savedContent = savedContent;
+
+    if (originalContent.includes('<!-- wp:pattern ')) {
+      try {
+        originalContent = expandPatternRefs(originalContent, await fetchRegisteredPatterns(page));
+      } catch (error) {
+        result.warnings.push({
+          type: 'pattern_ref_unresolved',
+          message: `Could not resolve nested wp:pattern references: ${error.message}`,
+        });
+      }
+    }
 
     const normalize = str => str.replace(/\s+/g, ' ').trim();
     if (normalize(normalizeForComparison(savedContent)) === normalize(normalizeForComparison(originalContent))) {
