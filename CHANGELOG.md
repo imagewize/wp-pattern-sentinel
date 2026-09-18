@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.1.3] - 2026-09-18
+
+### Changed
+- **Nested `wp:pattern` references are now treated as links, not content** — 1.1.2 expanded each `<!-- wp:pattern {"slug":"..."} /-->` into the referenced pattern's content before diffing, which re-validated every section inside every page that uses it. That was redundant, since each referenced pattern gets its own Sentinel run, and fragile: when the editor expands a reference it adds `metadata.{patternName,name,categories}` to the pattern's top-level block, which the source never has, so composed pages still failed with `content_mismatch`. Sentinel now removes the references from the markup it inserts into the editor and round-trips only the pattern's own blocks. Each referenced slug must be registered on the site; an unregistered one (a typo, or a pattern missing from the synced theme) fails with `pattern_ref_missing`. A pattern made up only of references skips the editor round-trip entirely.
+
 ## [1.1.2] - 2026-09-18
 
 ### Fixed

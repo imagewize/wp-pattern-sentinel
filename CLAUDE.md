@@ -46,6 +46,7 @@ src/
 - **Context pool, not shared context** — one `BrowserContext` per worker isolates sessions
 - **Login before queue** — `main()` logs in once per context before any validation starts; no `ensureLoggedIn` in workers
 - **`Promise.all` + map** — all tasks are pushed to the queue simultaneously; `await queue.add()` in a loop would serialize them
+- **Nested `wp:pattern` references are links, not content** — `splitPatternRefs` removes them before the editor round-trip and `checkPatternRefs` only verifies each slug is registered; the referenced pattern is validated by its own run. Don't expand them: the editor adds `metadata.patternName` etc. to expanded blocks, so an expanded diff never matches
 - **`deletePage` via REST API** — uses `/wp-json/wp/v2/pages/{id}?force=true` with the session nonce; non-fatal if it fails
 - **Credential priority** — `--trellis` → CLI flags → env vars → `.env` → interactive prompt
 - **Trellis auto-discovery** — walks up from cwd looking for `group_vars/` to find the trellis dir; auto-selects site by matching cwd against `local_path` in `wordpress_sites.yml`

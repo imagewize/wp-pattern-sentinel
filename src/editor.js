@@ -113,21 +113,6 @@ export async function insertPatternIntoEditor(page, blockContent, verbose = fals
       { timeout: 15000 }
     );
 
-    // Nested `core/pattern` placeholders are swapped for the referenced
-    // pattern's blocks asynchronously, once the pattern registry has loaded.
-    // Wait for that so the save and the content comparison see the expanded
-    // tree. Unregistered slugs never expand, so a timeout here is non-fatal.
-    if (/<!-- wp:pattern\s/.test(blockContent)) {
-      await page
-        .waitForFunction(() => {
-          const hasPattern = blocks => blocks.some(
-            b => b.name === 'core/pattern' || hasPattern(b.innerBlocks ?? [])
-          );
-          return !hasPattern(window.wp.data.select('core/block-editor').getBlocks());
-        }, { timeout: 10000 })
-        .catch(() => {});
-    }
-
     if (verbose) log('    → Pattern inserted', 'gray');
     return true;
   } catch (error) {

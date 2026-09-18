@@ -95,30 +95,59 @@ const normalizeForComparison = str =>
 
 /**
  * Matches a nested pattern reference: `<!-- wp:pattern {"slug":"theme/x"} /-->`.
- * The editor replaces these with the referenced pattern's blocks, so the
- * source must be expanded the same way before it can be diffed.
+ * A reference is a link to another pattern, not content of this one: the
+ * referenced pattern is validated by its own run, so here we only check that
+ * the slug resolves and validate whatever markup the pattern adds itself.
  */
 const PATTERN_REF = /<!-- wp:pattern (\{[\s\S]*?\}) \/-->/g;
 
-/** Map of registered pattern name → raw content, read from the REST API. */
-const fetchRegisteredPatterns = page =>
-  page.evaluate(async () => {
-    const patterns = await window.wp.apiFetch({ path: '/wp/v2/block-patterns/patterns' });
-    return Object.fromEntries(patterns.map(p => [p.name, p.content]));
-  });
+/**
+ * Split block content into the slugs it references and its own markup with
+ * those references removed. `ownContent` is '' for a pattern that only
+ * composes other patterns. A reference with unparseable JSON is left in
+ * place, so the editor flags it like any other invalid block.
+ */
+export function splitPatternRefs(content) {
+  const slugs = [];
+  const ownContent = content.replace(PATTERN_REF, (match, json) => {
+    try {
+      const { slug } = JSON.parse(json);
+      if (typeof slug !== 'string') return match;
+      slugs.push(slug);
+      return '';
+    } catch {
+      return match;
+    }
+  }).trim();
+  return { slugs, ownContent };
+}
 
 /**
- * Recursively substitute each `wp:pattern` reference with the referenced
- * pattern's content. Unregistered slugs and self-references are left as-is,
- * mirroring the editor, which leaves those `core/pattern` blocks unexpanded.
+ * Check every referenced slug is a registered pattern on the site. An
+ * unregistered slug (a typo, or a pattern missing from the synced theme)
+ * renders nothing on the page, so it is an error, not a warning.
  */
-const expandPatternRefs = (str, registry, seen = []) =>
-  str.replace(PATTERN_REF, (match, json) => {
-    let slug;
-    try { slug = JSON.parse(json).slug; } catch { return match; }
-    if (typeof registry[slug] !== 'string' || seen.includes(slug)) return match;
-    return expandPatternRefs(registry[slug], registry, [...seen, slug]);
-  });
+export async function checkPatternRefs(page, slugs, verbose = false) {
+  if (slugs.length === 0) return [];
+  if (verbose) log('    → Checking nested pattern references...', 'gray');
+  try {
+    const registered = await page.evaluate(async () => {
+      const patterns = await window.wp.apiFetch({ path: '/wp/v2/block-patterns/patterns' });
+      return patterns.map(p => p.name);
+    });
+    return [...new Set(slugs)]
+      .filter(slug => !registered.includes(slug))
+      .map(slug => ({
+        type:    'pattern_ref_missing',
+        message: `Referenced pattern "${slug}" is not registered on the site`,
+      }));
+  } catch (error) {
+    return [{
+      type:    'pattern_ref_error',
+      message: `Could not check nested pattern references: ${error.message}`,
+    }];
+  }
+}
 
 /**
  * Compare the editor's serialized output against the original source.
@@ -134,17 +163,6 @@ export async function compareContent(page, originalContent, verbose = false) {
       window.wp.data.select('core/editor').getEditedPostContent()
     );
     result.savedContent = savedContent;
-
-    if (originalContent.includes('<!-- wp:pattern ')) {
-      try {
-        originalContent = expandPatternRefs(originalContent, await fetchRegisteredPatterns(page));
-      } catch (error) {
-        result.warnings.push({
-          type: 'pattern_ref_unresolved',
-          message: `Could not resolve nested wp:pattern references: ${error.message}`,
-        });
-      }
-    }
 
     const normalize = str => str.replace(/\s+/g, ' ').trim();
     if (normalize(normalizeForComparison(savedContent)) === normalize(normalizeForComparison(originalContent))) {
