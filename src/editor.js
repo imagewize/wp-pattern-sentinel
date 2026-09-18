@@ -136,6 +136,7 @@ export async function insertPatternIntoEditor(page, blockContent, verbose = fals
     // Wait until at least one block is present
     await page.waitForFunction(
       () => window.wp.data.select('core/block-editor').getBlocks().length > 0,
+      null,
       { timeout: 15000 }
     );
 
@@ -155,18 +156,17 @@ export async function savePage(page, verbose = false) {
   const start  = Date.now();
   try {
     if (verbose) log('    → Saving page...', 'gray');
+    // savePost() resolves once the save request and its hooks have finished,
+    // and evaluate() awaits it — so isSavingPost() is already false here.
+    // Don't wait for the save to *start*: that condition never becomes true
+    // again and the wait runs to its full timeout (the 60s stall in #21).
     await page.evaluate(() => window.wp.data.dispatch('core/editor').savePost());
 
-    // Wait for save to start, then finish
-    await page
-      .waitForFunction(
-        () => window.wp.data.select('core/editor').isSavingPost(),
-        { timeout: 5000 }
-      )
-      .catch(() => {}); // save might be near-instant
-
+    // waitForFunction's second parameter is the page-function arg, so options
+    // must go third — passed second, the timeout is silently ignored.
     await page.waitForFunction(
       () => !window.wp.data.select('core/editor').isSavingPost(),
+      null,
       { timeout: 30000 }
     );
 
