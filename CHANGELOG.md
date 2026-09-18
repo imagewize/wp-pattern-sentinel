@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.1.2] - 2026-09-18
+
+### Fixed
+- **Nested `core/pattern` references no longer trigger false `content_mismatch`** ([#18](https://github.com/imagewize/wp-pattern-sentinel/issues/18)) — a pattern that composes other patterns via `<!-- wp:pattern {"slug":"..."} /-->` gets expanded by the editor into the referenced pattern's blocks, while the source still held the one-line placeholder, so everything after it was reported as "removed by editor". `compareContent` now fetches the registered patterns (`/wp/v2/block-patterns/patterns`) and recursively substitutes each reference with its content before normalizing and diffing. Unregistered slugs and self-references are left unexpanded, as the editor leaves them. `insertPatternIntoEditor` also waits (up to 10s, non-fatal) for the editor to finish expanding `core/pattern` blocks before saving.
+
 ## [1.1.1] - 2026-09-03
 
 ### Security
