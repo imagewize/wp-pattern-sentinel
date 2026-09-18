@@ -12,7 +12,7 @@ import {
   savePage,
   deletePage,
 } from './editor.js';
-import { checkBlockValidation, compareContent } from './validation.js';
+import { checkBlockValidation, compareContent, splitPatternRefs, checkPatternRefs } from './validation.js';
 import { log, formatResult, printSummary } from './format.js';
 
 const CACHE_FILE = '.sentinel-cache.json';
@@ -191,6 +191,10 @@ async function validatePatternFile(patternPath, options, context) {
     return fail(patternName, patternPath, startTime, 'extraction_error', 'Could not extract block content from file');
   }
 
+  // Nested `wp:pattern` references are validated by their own pattern's run;
+  // here they only need to resolve. The editor round-trip covers the rest.
+  const { slugs, ownContent } = splitPatternRefs(blockContent);
+
   const page = await context.newPage();
   page.setDefaultTimeout(60000);
 
@@ -200,12 +204,30 @@ async function validatePatternFile(patternPath, options, context) {
       return fail(patternName, patternPath, startTime, 'page_creation_error', 'Failed to create test page');
     }
 
-    if (!(await insertPatternIntoEditor(page, blockContent, verbose))) {
+    const refErrors = await checkPatternRefs(page, slugs, verbose);
+
+    // A pattern that only composes other patterns has nothing of its own to
+    // round-trip through the editor.
+    if (!ownContent) {
+      await deletePage(page, options.adminUrl, pageId, verbose);
+      return {
+        pattern:  patternName,
+        patternPath,
+        hash:     hashContent(fileContent),
+        passed:   refErrors.length === 0,
+        errors:   refErrors,
+        warnings: [],
+        duration: Date.now() - startTime,
+      };
+    }
+
+    if (!(await insertPatternIntoEditor(page, ownContent, verbose))) {
       await deletePage(page, options.adminUrl, pageId, verbose);
       return fail(patternName, patternPath, startTime, 'insertion_error', 'Failed to insert pattern into editor');
     }
 
     const saveResult  = await savePage(page, verbose);
+    saveResult.errors.push(...refErrors);
     const blockErrors = await checkBlockValidation(page, verbose);
 
     if (blockErrors.length > 0) {
@@ -219,7 +241,7 @@ async function validatePatternFile(patternPath, options, context) {
       })));
     }
 
-    const comparison = await compareContent(page, blockContent, verbose);
+    const comparison = await compareContent(page, ownContent, verbose);
     saveResult.errors.push(...comparison.errors);
     saveResult.warnings.push(...comparison.warnings);
 
@@ -231,7 +253,7 @@ async function validatePatternFile(patternPath, options, context) {
       pattern:      patternName,
       patternPath,
       hash:         hashContent(fileContent),
-      passed:       saveResult.success && comparison.matches && blockErrors.length === 0,
+      passed:       saveResult.success && comparison.matches && blockErrors.length === 0 && refErrors.length === 0,
       errors:       saveResult.errors,
       warnings:     saveResult.warnings,
       duration:     Date.now() - startTime,
