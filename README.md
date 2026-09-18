@@ -125,7 +125,7 @@ node bin/sentinel.js --verbose --url=... path/to/patterns/
 | `--concurrency` | `4` | Parallel workers |
 | `--json` | `false` | Output JSON (one result per line) |
 | `--keep-page` | `false` | Don't delete draft pages after validation |
-| `--verbose` | `false` | Show detailed step-by-step progress for each pattern |
+| `--verbose` | `false` | Show detailed step-by-step progress for each pattern, with the time each step took |
 | `--width` | `1280` | Viewport width |
 | `--height` | `800` | Viewport height |
 | `--cache` | `false` | Skip patterns that previously passed with the same file content (see [Pass cache](#pass-cache)) |
@@ -231,3 +231,5 @@ npx wp-pattern-sentinel --url=http://imagewize.test --user=admin --pass=secret p
 
 - `0` — all patterns passed
 - `1` — one or more patterns failed
+
+A `page_creation_error` means the block editor didn't load, so the pattern was never tested. This happens when several workers load the editor at once on a small PHP-FPM pool (e.g. Laravel Valet) and some editor scripts return 502. Sentinel detects this as soon as the page loads and retries up to three times, with a randomized delay, before giving up. The summary counts these failures as infrastructure errors, separate from validation failures. They still exit with `1`. If they keep happening, lower `--concurrency`.

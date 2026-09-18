@@ -4,6 +4,7 @@ import { log } from './format.js';
  * Walk the block tree and collect any blocks where isValid === false.
  */
 export async function checkBlockValidation(page, verbose = false) {
+  const start = Date.now();
   if (verbose) log('    → Checking block validation...', 'gray');
   try {
     const errors = await page.evaluate(() => {
@@ -26,7 +27,7 @@ export async function checkBlockValidation(page, verbose = false) {
       ]);
       return walk(window.wp.data.select('core/block-editor').getBlocks());
     });
-    if (verbose) log('    → Block validation complete', 'gray');
+    if (verbose) log(`    → Block validation complete (${Date.now() - start}ms)`, 'gray');
     return errors;
   } catch (error) {
     log(`Block validation check error: ${error.message}`, 'yellow');
@@ -156,6 +157,7 @@ export async function checkPatternRefs(page, slugs, verbose = false) {
  */
 export async function compareContent(page, originalContent, verbose = false) {
   const result = { matches: true, errors: [], warnings: [], savedContent: null };
+  const start  = Date.now();
 
   try {
     if (verbose) log('    → Comparing content...', 'gray');
@@ -166,7 +168,7 @@ export async function compareContent(page, originalContent, verbose = false) {
 
     const normalize = str => str.replace(/\s+/g, ' ').trim();
     if (normalize(normalizeForComparison(savedContent)) === normalize(normalizeForComparison(originalContent))) {
-      if (verbose) log('    → Content matches', 'gray');
+      if (verbose) log(`    → Content matches (${Date.now() - start}ms)`, 'gray');
       return result;
     }
 
@@ -190,7 +192,7 @@ export async function compareContent(page, originalContent, verbose = false) {
         message: `Content injected by editor:\n    ${added.join('\n    ')}`,
       });
     }
-    if (verbose) log('    → Content comparison complete', 'gray');
+    if (verbose) log(`    → Content comparison complete (${Date.now() - start}ms)`, 'gray');
   } catch (error) {
     result.errors.push({ type: 'comparison_error', message: error.message });
   }
