@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.1.4] - 2026-09-18
+
+### Fixed
+- **Editor-load timeouts under concurrency no longer fail patterns outright** ([#21](https://github.com/imagewize/wp-pattern-sentinel/issues/21)) — with the default `--concurrency=4`, all workers open `post-new.php` at once, and on a local PHP-FPM setup (e.g. Laravel Valet) some cold block editors took longer than the hard-coded 30s `waitForSelector` timeout, reporting a `page_creation_error` unrelated to the pattern's content. `createDraftPage` now uses the page's default timeout (60s, set in `main.js`) instead of a hard-coded 30s, and retries twice with backoff (5s, then 15s), the same way login does.
+- **Infrastructure failures are reported separately** — the summary now shows how many failures were `page_creation_error` (the editor never loaded, so the pattern was not tested), with a hint to re-run or lower `--concurrency`. The exit code stays `1` for these, since the pattern was not validated.
+
+### Changed
+- **`--verbose` shows elapsed time per step** — each step (editor load, insert, save, block validation, content comparison, delete) reports how long it took, so slow steps can be pinned down.
+
 ## [1.1.3] - 2026-09-18
 
 ### Changed
