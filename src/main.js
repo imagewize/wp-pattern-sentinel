@@ -201,7 +201,7 @@ async function validatePatternFile(patternPath, options, context) {
   try {
     const pageId = await createDraftPage(page, options.adminUrl, verbose);
     if (pageId === null) {
-      return fail(patternName, patternPath, startTime, 'page_creation_error', 'Failed to create test page');
+      return fail(patternName, patternPath, startTime, 'page_creation_error', 'Editor did not load after retries — not a pattern problem; re-run or lower --concurrency');
     }
 
     const refErrors = await checkPatternRefs(page, slugs, verbose);

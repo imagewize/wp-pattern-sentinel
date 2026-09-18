@@ -7,6 +7,14 @@ const C = {
   gray:   '\x1b[90m',
 };
 
+/**
+ * Error types that mean the pattern could not be tested at all (the editor
+ * never loaded), as opposed to the pattern failing validation.
+ */
+const INFRA_ERRORS = new Set(['page_creation_error']);
+
+const isInfraFailure = r => !r.passed && r.errors.some(e => INFRA_ERRORS.has(e.type));
+
 export function log(message, color = 'reset') {
   console.log(`${C[color] ?? C.reset}${message}${C.reset}`);
 }
@@ -31,6 +39,7 @@ export function formatResult(result) {
 export function printSummary(results, skipped = 0) {
   const passed       = results.filter(r => r.passed).length;
   const failed       = results.filter(r => !r.passed).length;
+  const infra        = results.filter(isInfraFailure).length;
   const totalErrors  = results.reduce((n, r) => n + r.errors.length, 0);
   const totalWarns   = results.reduce((n, r) => n + r.warnings.length, 0);
   const totalMs      = results.reduce((n, r) => n + r.duration, 0);
@@ -43,6 +52,9 @@ export function printSummary(results, skipped = 0) {
   if (skipped > 0) log(`Skipped   : ${skipped} (cached)`, 'gray');
   log(`Passed    : ${passed}`,       passed      > 0 ? 'green'  : 'gray');
   log(`Failed    : ${failed}`,       failed      > 0 ? 'red'    : 'gray');
+  if (infra > 0) {
+    log(`  of which : ${infra} infrastructure (editor did not load — re-run, or lower --concurrency)`, 'yellow');
+  }
   log(`Errors    : ${totalErrors}`,  totalErrors > 0 ? 'red'    : 'gray');
   log(`Warnings  : ${totalWarns}`,   totalWarns  > 0 ? 'yellow' : 'gray');
   log(`Time      : ${totalMs}ms  (avg ${avgMs}ms/pattern)`);
