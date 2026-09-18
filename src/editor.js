@@ -61,46 +61,72 @@ export function extractBlockContent(fileContent) {
   return stripPhpForValidation(stripped);
 }
 
+const PAGE_CREATION_RETRY_DELAYS = [5_000, 15_000]; // ms between attempts 1→2, 2→3
+
 /**
- * Navigate to a new draft page and return its post ID.
+ * Navigate to a new draft page and return its post ID, or null on failure.
  * WordPress redirects post-new.php → post.php?post=ID&action=edit,
  * so we can read the ID directly from the final URL.
+ *
+ * When several workers open post-new.php at once, the server builds that many
+ * cold block editors in parallel and a slow local PHP-FPM can exceed the
+ * timeout. That's an infrastructure error, not a pattern failure, so retry
+ * with backoff like loginToWordPress does. Timeouts come from the page's
+ * default (set in main.js) rather than a hard-coded value.
  */
 export async function createDraftPage(page, baseUrl, verbose = false) {
-  try {
-    if (verbose) log('    → Creating draft page...', 'gray');
-    await page.goto(`${baseUrl}/wp-admin/post-new.php?post_type=page`, {
-      waitUntil: 'domcontentloaded',
-      timeout: 30000,
-    });
-
-    await page.waitForSelector('.edit-post-layout, .editor-styles-wrapper', {
-      timeout: 30000,
-    });
-
-    const url = page.url();
-    const match = url.match(/[?&]post=(\d+)/);
-    if (match) {
-      if (verbose) log('    → Draft page created', 'gray');
-      return parseInt(match[1], 10);
+  for (let attempt = 0; attempt <= PAGE_CREATION_RETRY_DELAYS.length; attempt++) {
+    if (attempt > 0) {
+      const delay = PAGE_CREATION_RETRY_DELAYS[attempt - 1];
+      log(`    Editor load failed — waiting ${delay / 1000}s before retry ${attempt}/${PAGE_CREATION_RETRY_DELAYS.length}...`, 'yellow');
+      await new Promise(resolve => setTimeout(resolve, delay));
     }
 
-    // Fallback: read from wp.data (editor may not have redirected yet)
-    const pageId = await page.evaluate(() =>
-      window.wp?.data?.select('core/editor')?.getCurrentPostId?.() ?? null
-    );
-    if (verbose && pageId) log('    → Draft page created', 'gray');
-    return pageId;
-  } catch (error) {
-    log(`Failed to create draft page: ${error.message}`, 'red');
-    return null;
+    try {
+      return await attemptCreateDraftPage(page, baseUrl, verbose);
+    } catch (error) {
+      const shortMsg = error.message.split('\n')[0];
+      if (attempt < PAGE_CREATION_RETRY_DELAYS.length) {
+        log(`    Draft page attempt ${attempt + 1} failed: ${shortMsg}`, 'yellow');
+      } else {
+        log(`Failed to create draft page after ${attempt + 1} attempts: ${error.message}`, 'red');
+      }
+    }
   }
+  return null;
+}
+
+async function attemptCreateDraftPage(page, baseUrl, verbose) {
+  const start = Date.now();
+  if (verbose) log('    → Creating draft page...', 'gray');
+  await page.goto(`${baseUrl}/wp-admin/post-new.php?post_type=page`, {
+    waitUntil: 'domcontentloaded',
+  });
+  if (verbose) log(`    → post-new.php loaded (${Date.now() - start}ms)`, 'gray');
+
+  await page.waitForSelector('.edit-post-layout, .editor-styles-wrapper');
+
+  const url = page.url();
+  const match = url.match(/[?&]post=(\d+)/);
+  if (match) {
+    if (verbose) log(`    → Draft page created (${Date.now() - start}ms)`, 'gray');
+    return parseInt(match[1], 10);
+  }
+
+  // Fallback: read from wp.data (editor may not have redirected yet)
+  const pageId = await page.evaluate(() =>
+    window.wp?.data?.select('core/editor')?.getCurrentPostId?.() ?? null
+  );
+  if (pageId === null) throw new Error('Editor loaded but no post ID was found');
+  if (verbose) log(`    → Draft page created (${Date.now() - start}ms)`, 'gray');
+  return pageId;
 }
 
 /**
  * Set the editor content via wp.data and wait for blocks to parse.
  */
 export async function insertPatternIntoEditor(page, blockContent, verbose = false) {
+  const start = Date.now();
   try {
     if (verbose) log('    → Inserting pattern into editor...', 'gray');
     await page.evaluate(content => {
@@ -113,7 +139,7 @@ export async function insertPatternIntoEditor(page, blockContent, verbose = fals
       { timeout: 15000 }
     );
 
-    if (verbose) log('    → Pattern inserted', 'gray');
+    if (verbose) log(`    → Pattern inserted (${Date.now() - start}ms)`, 'gray');
     return true;
   } catch (error) {
     log(`Failed to insert pattern: ${error.message}`, 'red');
@@ -126,6 +152,7 @@ export async function insertPatternIntoEditor(page, blockContent, verbose = fals
  */
 export async function savePage(page, verbose = false) {
   const result = { success: false, errors: [], warnings: [] };
+  const start  = Date.now();
   try {
     if (verbose) log('    → Saving page...', 'gray');
     await page.evaluate(() => window.wp.data.dispatch('core/editor').savePost());
@@ -143,7 +170,7 @@ export async function savePage(page, verbose = false) {
       { timeout: 30000 }
     );
 
-    if (verbose) log('    → Page saved', 'gray');
+    if (verbose) log(`    → Page saved (${Date.now() - start}ms)`, 'gray');
     result.success = true;
   } catch (error) {
     result.errors.push({ type: 'save_error', message: error.message });
@@ -156,6 +183,7 @@ export async function savePage(page, verbose = false) {
  * Non-fatal — a failure here does not affect validation results.
  */
 export async function deletePage(page, baseUrl, pageId, verbose = false) {
+  const start = Date.now();
   try {
     if (verbose) log('    → Deleting draft page...', 'gray');
     await page.evaluate(async id => {
@@ -165,7 +193,7 @@ export async function deletePage(page, baseUrl, pageId, verbose = false) {
         headers: { 'X-WP-Nonce': nonce },
       });
     }, pageId);
-    if (verbose) log('    → Draft page deleted', 'gray');
+    if (verbose) log(`    → Draft page deleted (${Date.now() - start}ms)`, 'gray');
   } catch {
     // Non-fatal
   }
