@@ -1,30 +1,59 @@
 import { log } from './format.js';
 
 /**
- * Walk the block tree and collect any blocks where isValid === false.
+ * Walk the block tree and collect any blocks where isValid === false, plus any
+ * block a deprecation silently migrated.
+ *
+ * When a block fails validation, the parser tries the block type's
+ * deprecations; if one accepts the markup, the block is migrated and reported
+ * as isValid: true with no issues, yet its attributes have changed and it will
+ * save different markup. The editor then shows the block as broken on the next
+ * load. Example: core/paragraph with aria-hidden="true" is taken by an old
+ * paragraph deprecation that drops fontFamily and keeps the whole <p> as the
+ * block's text, so the first save writes a <p> nested inside another <p>.
+ * Re-running validateBlock() on the parsed block compares what it will save
+ * against the original markup, which catches this.
  */
 export async function checkBlockValidation(page, verbose = false) {
   const start = Date.now();
   if (verbose) log('    → Checking block validation...', 'gray');
   try {
     const errors = await page.evaluate(() => {
-      const walk = blocks => blocks.flatMap(block => [
-        ...(block.isValid === false
-          ? [{
-              blockId:          block.clientId,
-              blockName:        block.name,
-              error:            'Block validation failed',
-              validationIssues: (block.validationIssues ?? []).map(issue => {
-                try {
-                  return (issue.args ?? [])
-                    .map(a => (typeof a === 'string' ? a : JSON.stringify(a)))
-                    .join(' ');
-                } catch { return 'unknown issue'; }
-              }),
-            }]
-          : []),
-        ...walk(block.innerBlocks ?? []),
-      ]);
+      const formatIssues = issues => (issues ?? []).map(issue => {
+        try {
+          return (issue.args ?? [])
+            .map(a => (typeof a === 'string' ? a : JSON.stringify(a)))
+            .join(' ');
+        } catch { return 'unknown issue'; }
+      });
+      const validateBlock = window.wp.blocks.validateBlock;
+      const migratedIssues = block => {
+        if (!validateBlock || block.isValid !== true || block.name === 'core/missing') return null;
+        const [isValid, issues] = validateBlock(block);
+        return isValid ? null : issues;
+      };
+      const walk = blocks => blocks.flatMap(block => {
+        const migrated = migratedIssues(block);
+        return [
+          ...(block.isValid === false
+            ? [{
+                blockId:          block.clientId,
+                blockName:        block.name,
+                error:            'Block validation failed',
+                validationIssues: formatIssues(block.validationIssues),
+              }]
+            : []),
+          ...(migrated
+            ? [{
+                blockId:          block.clientId,
+                blockName:        block.name,
+                error:            'Block was migrated by a deprecation and will save different markup',
+                validationIssues: formatIssues(migrated),
+              }]
+            : []),
+          ...walk(block.innerBlocks ?? []),
+        ];
+      });
       return walk(window.wp.data.select('core/block-editor').getBlocks());
     });
     if (verbose) log(`    → Block validation complete (${Date.now() - start}ms)`, 'gray');
