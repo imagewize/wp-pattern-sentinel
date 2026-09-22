@@ -212,6 +212,10 @@ node -e "
 
 `block_validation` errors also surface Gutenberg's human-readable issue messages (e.g. `"Expected attribute 'class' of value '…' but got '…'"`), so you no longer need to open the browser console to identify what failed.
 
+A block can also pass validation only because one of its block type's deprecations accepted the markup and migrated it. The editor reports such a block as valid, but it saves different markup, and it shows as broken the next time the page is opened. Sentinel re-validates every parsed block against its original markup and reports these as `block_validation` errors reading "Block was migrated by a deprecation and will save different markup". A common cause is an attribute the block does not support, such as `aria-hidden` on `core/paragraph`.
+
+`--cache` entries record the Sentinel version that passed them, so upgrading Sentinel re-validates every pattern once.
+
 ## npm publish
 
 When ready to publish:
