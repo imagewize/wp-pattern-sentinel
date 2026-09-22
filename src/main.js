@@ -17,6 +17,12 @@ import { log, formatResult, printSummary } from './format.js';
 
 const CACHE_FILE = '.sentinel-cache.json';
 
+// Cache entries record the Sentinel version that passed them, so a release
+// that adds or tightens a check re-validates patterns that passed before it.
+const SENTINEL_VERSION = JSON.parse(
+  fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8')
+).version;
+
 function loadCache() {
   try {
     return JSON.parse(fs.readFileSync(path.join(process.cwd(), CACHE_FILE), 'utf8'));
@@ -67,7 +73,7 @@ export async function main() {
       try {
         const content = fs.readFileSync(file, 'utf8');
         const key     = path.relative(process.cwd(), file);
-        if (cache[key]?.passed && cache[key]?.hash === hashContent(content)) {
+        if (cache[key]?.passed && cache[key]?.hash === hashContent(content) && cache[key]?.version === SENTINEL_VERSION) {
           skipped.push(file);
         } else {
           pending.push(file);
@@ -153,7 +159,7 @@ export async function main() {
     for (const result of results) {
       const key = path.relative(process.cwd(), result.patternPath);
       if (result.passed) {
-        cache[key] = { hash: result.hash, passed: true, checkedAt: new Date().toISOString() };
+        cache[key] = { hash: result.hash, passed: true, version: SENTINEL_VERSION, checkedAt: new Date().toISOString() };
       } else {
         delete cache[key];
       }
