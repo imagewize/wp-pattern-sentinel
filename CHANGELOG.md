@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.1.5] - 2026-09-22
+
+### Fixed
+- **Blocks silently migrated by a deprecation now fail validation** — when a block's markup fails validation, Gutenberg retries it against the block type's deprecations. If one accepts it, the block is migrated and reported as `isValid: true` with no issues, so Sentinel passed it. But its attributes have changed, it saves different markup, and the editor shows it as invalid the next time the page loads. Found with `core/paragraph` blocks carrying `aria-hidden="true"`: an old paragraph deprecation dropped `fontFamily` and kept the whole `<p>` as the block's text, so the first save wrote a `<p>` nested inside another `<p>`. `checkBlockValidation` now re-runs `wp.blocks.validateBlock()` on every block that reports as valid and fails the pattern with "Block was migrated by a deprecation and will save different markup".
+- **`--cache` entries are tied to the Sentinel version** — a cached pass is only reused when it was recorded by the same Sentinel version, so a release that adds a check (like the one above) re-validates patterns that passed before it.
+
+### Known limitation
+- The content comparison reads `getEditedPostContent()`, which after `editPost({ content })` returns the inserted string as is, unless a block changes its own attributes on mount. So `content_mismatch` does not reliably catch serializer differences. Comparing a fresh serialization of the blocks instead reports harmless differences (HTML attribute order, default attributes such as a heading's `"level":2`) and needs more normalization first. The deprecation check above covers the case that broke real pages.
+
 ## [1.1.4] - 2026-09-18
 
 ### Fixed
