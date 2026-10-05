@@ -118,7 +118,7 @@ node bin/sentinel.js --verbose --url=... path/to/patterns/
 
 ## What it validates: `.php` and `.html`
 
-Sentinel never asks WordPress for registered patterns. It reads block markup from a file, puts it into a new draft page in the editor, saves the page and compares the result. So a file doesn't have to be a registered pattern; it only has to contain serialized blocks. A folder argument is scanned recursively for both extensions.
+Sentinel never asks WordPress for registered patterns. It reads block markup from a file, puts it into a new draft page in the editor, saves the page and compares the result. So a file doesn't have to be a registered pattern; it only has to contain serialized blocks. A folder argument is scanned recursively for both extensions, skipping `node_modules`, `vendor` and dot-folders such as `.git`. Point Sentinel at the pattern or fixture folder rather than a block theme's root: `templates/*.html` and `parts/*.html` are block markup too, but they are site templates, not post content, and don't belong in a page round-trip.
 
 | Extension | What it holds | What Sentinel strips before inserting |
 |-----------|---------------|---------------------------------------|

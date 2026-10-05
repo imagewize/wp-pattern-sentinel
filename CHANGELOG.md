@@ -4,6 +4,8 @@
 
 ### Added
 - **`.html` files are validated as raw block markup.** Folder scans now pick up `.html` alongside `.php`. An `.html` file holds serialized blocks as stored in `post_content`, with no PHP header. Sentinel strips only a leading header of plain HTML comments (`<!-- SUGGESTED TITLE: … -->`) and Blade comments (`{{-- … --}}`), then inserts the rest. This covers blocks that never appear in a registered pattern, such as a theme's post-content CTA. Before this, those had to be wrapped in a fake pattern header to be tested. It also covers post and page drafts written as block markup. A file whose content after the header doesn't start with a block comment fails with `extraction_error`.
+- **Folder scans skip `node_modules`, `vendor` and dot-folders** (`.git`, `.cache`). With `.html` now collected, a scan of a theme root would otherwise pick up dependency demo pages and stray PHP files. A skipped folder passed explicitly on the command line is still scanned.
+- Unit tests for block extraction and folder scanning, run with `npm test` (Node's built-in test runner, no new dependencies).
 - README: a new "What it validates" section on choosing `.php` or `.html`, the rules for `.html` files, and why a fixture for a block with a locked template fails after the template changes.
 
 ## [1.1.5] - 2026-09-22
