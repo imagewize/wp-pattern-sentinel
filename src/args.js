@@ -148,7 +148,7 @@ export function resolveFiles(filePaths) {
   if (!filePaths || filePaths.length === 0) {
     throw new Error(
       'No pattern files specified.\n' +
-      'Usage: sentinel [--trellis [--site=example.com]] path/to/patterns/\n' +
+      'Usage: sentinel [--trellis [--site=example.com]] path/to/patterns/  (.php and .html files)\n' +
       'Or set WP_URL, WP_USER, WP_PASS in .env'
     );
   }
@@ -162,7 +162,7 @@ export function resolveFiles(filePaths) {
     }
     const stat = fs.statSync(abs);
     if (stat.isDirectory()) {
-      resolved.push(...findPhpFiles(abs));
+      resolved.push(...findPatternFiles(abs));
     } else {
       resolved.push(abs);
     }
@@ -170,13 +170,23 @@ export function resolveFiles(filePaths) {
   return [...new Set(resolved)];
 }
 
-function findPhpFiles(dir) {
+// `.php` — WordPress pattern files. `.html` — raw serialized block markup, as
+// stored in post_content (block fixtures, post drafts).
+const PATTERN_EXTENSIONS = ['.php', '.html'];
+
+// Dependency and VCS folders are never pattern sources, but they do hold
+// stray `.php`/`.html` files (README demos, test pages) that a scan of a theme
+// root would otherwise try to validate. Dot-folders (.git, .cache) likewise.
+const SKIPPED_DIRS = new Set(['node_modules', 'vendor']);
+
+function findPatternFiles(dir) {
   const results = [];
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      results.push(...findPhpFiles(full));
-    } else if (entry.isFile() && entry.name.endsWith('.php')) {
+      if (SKIPPED_DIRS.has(entry.name) || entry.name.startsWith('.')) continue;
+      results.push(...findPatternFiles(full));
+    } else if (entry.isFile() && PATTERN_EXTENSIONS.includes(path.extname(entry.name))) {
       results.push(full);
     }
   }

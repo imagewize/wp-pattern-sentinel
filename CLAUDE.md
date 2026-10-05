@@ -17,6 +17,12 @@ npm install
 npx playwright install chromium
 ```
 
+## Tests
+
+```bash
+npm test   # node --test — pure functions only (extraction, file resolution); no browser or WP needed
+```
+
 ## Running
 
 ```bash

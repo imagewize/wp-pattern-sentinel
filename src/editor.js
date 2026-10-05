@@ -52,13 +52,38 @@ function stripPhpForValidation(content) {
  * regardless of what it contains (docblock only, or docblock + guard) — so a
  * single non-greedy strip handles both shapes in one pass.
  */
-export function extractBlockContent(fileContent) {
+export function extractBlockContent(fileContent, filePath = '') {
+  if (filePath.endsWith('.html')) return extractHtmlBlockContent(fileContent);
+
   const stripped = fileContent
     .replace(/^[\s\S]*?\?>\s*/, '')
     .trim();
 
   if (!stripped.startsWith('<!--')) return null;
   return stripPhpForValidation(stripped);
+}
+
+/**
+ * Return the block markup of an `.html` file: serialized blocks exactly as
+ * WordPress stores them in post_content, with no PHP header.
+ *
+ * Only a *leading* header is removed — plain HTML comments that are not block
+ * delimiters (`<!-- SUGGESTED TITLE: … -->`) and Blade comments
+ * (`{{-- … --}}`). Draft files carry these as notes for humans; left in, the
+ * editor would turn them into a Classic block and report a mismatch. Comments
+ * after the first block are content and are left alone. Returns null if no
+ * block comment follows the header.
+ */
+export function extractHtmlBlockContent(fileContent) {
+  const HEADER_COMMENT = /^\s*(?:<!--(?!\s*\/?wp:)[\s\S]*?-->|\{\{--[\s\S]*?--\}\})/;
+
+  let content = fileContent;
+  while (HEADER_COMMENT.test(content)) {
+    content = content.replace(HEADER_COMMENT, '');
+  }
+  content = content.trim();
+
+  return /^<!--\s*wp:/.test(content) ? content : null;
 }
 
 const PAGE_CREATION_RETRY_DELAYS = [3_000, 8_000, 15_000]; // ms before retries 1, 2, 3 (plus jitter)
