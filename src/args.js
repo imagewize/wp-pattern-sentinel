@@ -174,11 +174,17 @@ export function resolveFiles(filePaths) {
 // stored in post_content (block fixtures, post drafts).
 const PATTERN_EXTENSIONS = ['.php', '.html'];
 
+// Dependency and VCS folders are never pattern sources, but they do hold
+// stray `.php`/`.html` files (README demos, test pages) that a scan of a theme
+// root would otherwise try to validate. Dot-folders (.git, .cache) likewise.
+const SKIPPED_DIRS = new Set(['node_modules', 'vendor']);
+
 function findPatternFiles(dir) {
   const results = [];
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
+      if (SKIPPED_DIRS.has(entry.name) || entry.name.startsWith('.')) continue;
       results.push(...findPatternFiles(full));
     } else if (entry.isFile() && PATTERN_EXTENSIONS.includes(path.extname(entry.name))) {
       results.push(full);
