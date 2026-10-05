@@ -14,7 +14,7 @@ WordPress block validation is a JavaScript concern. The editor's `save()` functi
 
 Credentials are resolved in this order — the first match wins:
 
-1. **`--trellis` flag** — reads directly from Roots Trellis vault + `wordpress_sites.yml`
+1. **`--trellis` flag** — reads directly from Roots Trellis vault + `wordpress_sites.yml` (`--user` / `--pass` still override the username and password)
 2. **CLI flags** — `--url`, `--user`, `--pass`
 3. **Environment variables** — `WP_URL`, `WP_USER`, `WP_PASS`
 4. **`.env` file** — placed in the directory where you run sentinel
@@ -62,6 +62,15 @@ Sentinel auto-discovers the Trellis directory by walking up from the current wor
 | `--subsite` | — | Multisite subsite slug (appended to URL) |
 
 **Bedrock support:** When `--trellis` is used, sentinel auto-detects Bedrock installs by reading `WP_SITEURL` from the site's `.env` file. Bedrock puts WordPress core in `/wp/`, so admin URLs become `/wp/wp-admin/` instead of `/wp-admin/`. No extra flags needed — this is handled automatically.
+
+**Different admin user:** Trellis provisions a WordPress user named `admin`, and that is the username Sentinel logs in with. If the local database was pulled from production, `admin` may not exist and login fails with "The username admin is not registered on this site". Pass the real admin with `--user`. Add `--pass` if that user's password differs from the vault's `admin_password`. URL and Bedrock detection still come from Trellis.
+
+```bash
+sentinel --trellis --site=example.com --user=jane path/to/patterns/
+
+# Password from your shell rather than the command line history; an empty value keeps the vault password
+sentinel --trellis --site=example.com --user=jane --pass="$WP_PASS" path/to/patterns/
+```
 
 ---
 
@@ -154,8 +163,8 @@ A block that renders `InnerBlocks` with a `template` and `templateLock: "all"` o
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--url` | `http://localhost` | WordPress site URL |
-| `--user` | `admin` | Admin username |
-| `--pass` | `password` | Admin password |
+| `--user` | `admin` | Admin username. Overrides the Trellis username when used with `--trellis` |
+| `--pass` | `password` | Admin password. Overrides the vault password when used with `--trellis` |
 | `--wp-subdir` | — | WP core subdir when not using `--trellis` (e.g. `wp` for Bedrock). Sets admin URL to `{url}/{subdir}`. Auto-detected from `WP_SITEURL` when `--trellis` is used. |
 | `--headless` | `true` | Run browser headless |
 | `--concurrency` | `4` | Parallel workers |

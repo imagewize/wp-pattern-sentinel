@@ -7,6 +7,7 @@ import { findTrellisDir, loadTrellisCredentials } from './trellis.js';
 /**
  * Credential resolution priority:
  *   1. --trellis flag  → reads Roots Trellis vault + wordpress_sites.yml
+ *                        (--user / --pass still override the vault values)
  *   2. CLI flags       → --url, --user, --pass
  *   3. Env vars        → WP_URL, WP_USER, WP_PASS
  *   4. .env file       → loaded from cwd automatically
@@ -64,6 +65,19 @@ function loadDotEnv() {
   }
 }
 
+/**
+ * Let --user / --pass override credentials read from Trellis. Trellis
+ * provisions the WordPress user "admin", but a site whose database was pulled
+ * from production only has that site's real admin, so explicit flags win. An
+ * empty flag (`--pass="$UNSET_VAR"` in an npm script) keeps the vault value.
+ */
+export function applyCredentialFlags({ user, pass }, values) {
+  return {
+    user: values.user || user,
+    pass: values.pass || pass,
+  };
+}
+
 export async function parseArgs(args) {
   loadDotEnv();
 
@@ -87,6 +101,8 @@ export async function parseArgs(args) {
       env:     values.env,
       subsite: values.subsite ?? null,
     }));
+
+    ({ user, pass } = applyCredentialFlags({ user, pass }, values));
 
   } else {
     // --- Source 2: CLI flags ---
