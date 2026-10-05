@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.2.1] - 2026-10-05
+
+### Fixed
+- **`--user` and `--pass` now work together with `--trellis`.** Sentinel always logged in to a Trellis site as `admin`, the user Trellis provisions, and ignored `--user`. A local site whose database was pulled from production often has no `admin` user, so login failed with "The username admin is not registered on this site". The username and password from `--user` and `--pass` now override the Trellis values. Without them nothing changes. An empty value, such as `--pass="$WP_PASS"` with the variable unset, keeps the vault value.
+- Unit tests for the override in `test/credentials.test.js`.
+
 ## [1.2.0] - 2026-10-05
 
 ### Added
