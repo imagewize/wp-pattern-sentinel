@@ -4,7 +4,7 @@
 [![npm downloads](https://img.shields.io/npm/dt/@imwz/wp-pattern-sentinel.svg)](https://www.npmjs.com/package/@imwz/wp-pattern-sentinel)
 [![License](https://img.shields.io/npm/l/@imwz/wp-pattern-sentinel.svg)](https://github.com/imagewize/wp-pattern-sentinel/blob/main/package.json)
 
-Browser-based WordPress block pattern validator. Loads each pattern into the Gutenberg editor via Playwright, saves it, and checks for block validation errors and content mismatches.
+Browser-based WordPress block pattern validator. Loads each pattern into the Gutenberg editor via Playwright, saves it, and checks for block validation errors and content mismatches. Validates `.php` pattern files and `.html` files of raw block markup. See [What it validates](#what-it-validates-php-and-html).
 
 ## Why browser-based?
 
@@ -97,6 +97,9 @@ node bin/sentinel.js \
 # Validate specific files
 node bin/sentinel.js patterns/hero.php patterns/cta.php
 
+# Raw block markup (.html) — block fixtures or post drafts
+node bin/sentinel.js tests/sentinel/ drafts/my-post.html
+
 # JSON output (one result object per line)
 node bin/sentinel.js --json --url=... path/to/patterns/
 
@@ -112,6 +115,39 @@ node bin/sentinel.js --concurrency=6 --url=... path/to/patterns/
 # Show verbose step-by-step output
 node bin/sentinel.js --verbose --url=... path/to/patterns/
 ```
+
+## What it validates: `.php` and `.html`
+
+Sentinel never asks WordPress for registered patterns. It reads block markup from a file, puts it into a new draft page in the editor, saves the page and compares the result. So a file doesn't have to be a registered pattern; it only has to contain serialized blocks. A folder argument is scanned recursively for both extensions.
+
+| Extension | What it holds | What Sentinel strips before inserting |
+|-----------|---------------|---------------------------------------|
+| `.php` | A WordPress pattern file: PHP header, then block markup | Everything up to the first `?>` (docblock, `ABSPATH` guard), then inline PHP such as `esc_html_e()` is replaced with static text |
+| `.html` | Raw serialized blocks, exactly as WordPress stores them in `post_content` | Only a **leading** header made of plain HTML comments (`<!-- SUGGESTED TITLE: … -->`) and Blade comments (`{{-- … --}}`) |
+
+### When to use `.html`
+
+- **Testing a block that no pattern uses.** A theme block that only ever appears in post content (a CTA, a callout) has no pattern file for Sentinel to pick up. Don't wrap it in a fake pattern header. Save the block's markup as it is serialized in a real post, for example copied from `wp post get <id> --field=post_content`, as `tests/sentinel/<block>.html`.
+- **Checking post or page drafts before import.** Drafts written as `.html` block markup can be validated as they are. Header notes at the top of the file are skipped. Without that, the editor would wrap them in a Classic block and Sentinel would report a false mismatch.
+
+```bash
+# A theme's block fixtures
+sentinel --trellis --site=example.com tests/sentinel/
+
+# Blog drafts before they are imported
+sentinel --trellis --site=example.com drafts/blog-posts/
+```
+
+### Rules for `.html` files
+
+- After the header, the file must start with a block comment (`<!-- wp:… -->`). Otherwise it fails with `extraction_error`.
+- Only the header is stripped. A non-block comment *after* the first block is left in, because in post content it is real content.
+- There's no PHP handling, so an `.html` file containing `<?php` is inserted as is.
+- Use markup the editor actually produced, not hand-written HTML. The test's value is that a real serialization round-trips cleanly.
+
+### Blocks with a locked template
+
+A block that renders `InnerBlocks` with a `template` and `templateLock: "all"` or `"contentOnly"` is re-synced to that template when the editor loads it. Gutenberg matches inner blocks by position, adds any the template has extra, and removes any it no longer has. A fixture holding the markup a post stored *before* a template change will therefore fail with `content_mismatch`, and that is correct. It is exactly the change an editor would see on opening such a post. Keep one fixture per current template, and run an old one on purpose when you want to see how existing posts will be affected.
 
 ## Options
 
