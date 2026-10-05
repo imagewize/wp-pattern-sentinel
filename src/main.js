@@ -192,7 +192,7 @@ async function validatePatternFile(patternPath, options, context) {
     return fail(patternName, patternPath, startTime, 'file_error', error.message);
   }
 
-  const blockContent = extractBlockContent(fileContent);
+  const blockContent = extractBlockContent(fileContent, patternPath);
   if (!blockContent) {
     return fail(patternName, patternPath, startTime, 'extraction_error', 'Could not extract block content from file');
   }
