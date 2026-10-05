@@ -10,7 +10,8 @@
     "sentinel": "bin/sentinel.js"
   },
   "scripts": {
-    "start": "node bin/sentinel.js"
+    "start": "node bin/sentinel.js",
+    "test": "node --test test/*.test.js"
   },
   "files": [
     "bin/",
