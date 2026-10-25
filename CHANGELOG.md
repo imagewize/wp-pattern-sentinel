@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.2] - 2026-10-25
+
+### Fixed
+- **PHP in block comment attributes no longer causes false validation failures** (#26). Sentinel resolved only `esc_html_e`, `esc_html__`, `esc_attr_e`, `esc_attr__` and `esc_url`, and removed every other `<?php ... ?>` block. Inside a block comment's JSON that deleted the attribute, so the block fell back to its defaults and failed with errors like `Expected text '0', saw '3 steps'`, although the pattern renders correctly. It now also resolves `echo esc_attr( __( 'Text', 'domain' ) )`, the same with `esc_html`, and `echo esc_attr( trim( wp_json_encode( __( 'Text', 'domain' ) ), '"' ) )`, which is JSON-escaped.
+- A warning is logged when other PHP is removed from inside a block comment, so a resulting failure can be traced to it.
+- Unit tests for the new forms in `test/extract.test.js`.
+
 ## [1.2.1] - 2026-10-05
 
 ### Fixed
