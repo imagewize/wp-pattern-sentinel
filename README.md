@@ -131,7 +131,7 @@ Sentinel never asks WordPress for registered patterns. It reads block markup fro
 
 | Extension | What it holds | What Sentinel strips before inserting |
 |-----------|---------------|---------------------------------------|
-| `.php` | A WordPress pattern file: PHP header, then block markup | Everything up to the first `?>` (docblock, `ABSPATH` guard), then inline PHP such as `esc_html_e()` is replaced with static text |
+| `.php` | A WordPress pattern file: PHP header, then block markup | Everything up to the first `?>` (docblock, `ABSPATH` guard), then inline PHP such as `esc_html_e()` or `echo esc_attr( __() )` is replaced with static text, including inside block comment attributes. Other PHP is removed, with a warning when it sat inside a block comment |
 | `.html` | Raw serialized blocks, exactly as WordPress stores them in `post_content` | Only a **leading** header made of plain HTML comments (`<!-- SUGGESTED TITLE: … -->`) and Blade comments (`{{-- … --}}`) |
 
 ### When to use `.html`
