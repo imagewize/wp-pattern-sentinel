@@ -56,3 +56,20 @@ test('extractBlockContent replaces inline PHP in .php files', () => {
   const file = "<?php\n/** Title: Hi */\n?>\n<!-- wp:paragraph -->\n<p><?php esc_html_e( 'Hi & bye', 'elayne' ); ?></p>\n<!-- /wp:paragraph -->";
   assert.equal(extractBlockContent(file, '/x/hi.php'), '<!-- wp:paragraph -->\n<p>Hi &amp; bye</p>\n<!-- /wp:paragraph -->');
 });
+
+const PHP_HEADER = "<?php\n/**\n * Title: T\n */\n?>\n";
+
+test('php: echo esc_attr( __() ) in a block comment is resolved', () => {
+  const file = PHP_HEADER + "<!-- wp:x/y {\"n\":\"<?php echo esc_attr( __( '3 steps', 'd' ) ); ?>\"} /-->";
+  assert.equal(extractBlockContent(file, 'p.php'), '<!-- wp:x/y {"n":"3 steps"} /-->');
+});
+
+test('php: trim( wp_json_encode( __() ) ) in a block comment is resolved and JSON-escaped', () => {
+  const file = PHP_HEADER + "<!-- wp:x/y {\"n\":\"<?php echo esc_attr( trim( wp_json_encode( __( 'A \"q\"', 'd' ) ), '\"' ) ); ?>\"} /-->";
+  assert.equal(extractBlockContent(file, 'p.php'), '<!-- wp:x/y {"n":"A \\"q\\""} /-->');
+});
+
+test('php: echo esc_html( __() ) in markup is resolved', () => {
+  const file = PHP_HEADER + "<!-- wp:paragraph --><p><?php echo esc_html( __( 'Hi', 'd' ) ); ?></p><!-- /wp:paragraph -->";
+  assert.equal(extractBlockContent(file, 'p.php'), '<!-- wp:paragraph --><p>Hi</p><!-- /wp:paragraph -->');
+});

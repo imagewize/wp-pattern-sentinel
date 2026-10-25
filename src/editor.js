@@ -10,7 +10,12 @@ import { log } from './format.js';
  *   <?php esc_attr_e( 'Alt text', 'elayne' ); ?>       → Alt text
  *   <?php echo esc_attr__( 'Alt text', 'elayne' ); ?>  → Alt text
  *   <?php echo esc_url( get_template_directory_uri() ); ?>  → http://example.com
- *   All other <?php ... ?> blocks                       → removed
+ *   <?php echo esc_attr( __( 'Text', 'elayne' ) ); ?>  → Text (also esc_html, _e)
+ *   <?php echo esc_attr( trim( wp_json_encode( __( 'Text', 'elayne' ) ), '"' ) ); ?>
+ *                                                       → Text, JSON-escaped
+ *   All other <?php ... ?> blocks                       → removed; one inside a
+ *   block comment is reported, as its attribute is lost and the block falls
+ *   back to its defaults
  */
 function stripPhpForValidation(content) {
   if (!content.includes('<?php')) return content;
@@ -23,8 +28,16 @@ function stripPhpForValidation(content) {
     .replace(/<\?php\s+(?:esc_attr_e|esc_attr__)\s*\(\s*'([^']+)'\s*,\s*'[^']+'\s*\)\s*;?\s*\?>/g, '$1')
     .replace(/<\?php\s+(?:esc_attr_e|esc_attr__)\s*\(\s*"([^"]+)"\s*,\s*"[^"]+"\s*\)\s*;?\s*\?>/g, '$1')
     .replace(/<\?php\s+echo\s+esc_attr__\s*\(\s*'([^']+)'\s*,\s*'[^']+'\s*\)\s*;?\s*\?>/g, '$1')
+    .replace(/<\?php\s+echo\s+esc_(?:attr|html)\s*\(\s*trim\s*\(\s*wp_json_encode\s*\(\s*__\s*\(\s*'([^']+)'\s*,\s*'[^']+'\s*\)\s*\)\s*,\s*'"'\s*\)\s*\)\s*;?\s*\?>/g, (_, t) => JSON.stringify(t).slice(1, -1))
+    .replace(/<\?php\s+echo\s+esc_(?:attr|html)\s*\(\s*__\s*\(\s*'([^']+)'\s*,\s*'[^']+'\s*\)\s*\)\s*;?\s*\?>/g, (_, t) => esc(t))
     .replace(/<\?php\s+echo\s+esc_url\s*\([\s\S]*?\)\s*;?\s*\?>/g, 'http://example.com')
-    .replace(/<\?php[\s\S]*?\?>/g, '')
+    .replace(/<\?php[\s\S]*?\?>/g, (php, offset, whole) => {
+      const before = whole.slice(0, offset);
+      if (before.lastIndexOf('<!--') > before.lastIndexOf('-->')) {
+        log(`    Warning: unresolved PHP removed from a block comment, its attribute is lost: ${php.replace(/\s+/g, ' ').slice(0, 80)}`, 'yellow');
+      }
+      return '';
+    })
     .trim();
 }
 
